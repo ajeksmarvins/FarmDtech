@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1180" height="690" viewBox="0 0 1180 690">
+ <defs>
+  <marker id="a" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 Z" fill="#537968"/></marker>
+  <style>
+   .bg{fill:#f4faf5}.panel{fill:#fff;stroke:#b5d3c0;stroke-width:2}.alt{fill:#def1e3;stroke:#91be9d;stroke-width:2}.heading{font:700 35px Arial,sans-serif;fill:#123e2b}.title{font:700 18px Arial,sans-serif;fill:#15452f}.txt{font:14px Arial,sans-serif;fill:#346249}.line{stroke:#537968;stroke-width:3;fill:none;marker-end:url(#a)}.dashed{stroke-dasharray:7 6}
+  </style>
+ </defs>
+ <rect width="1180" height="690" fill="#f4faf5"/>
+ <text x="58" y="68" class="heading">FarmDtech — System Architecture</text>
+ <text x="58" y="94" class="txt">Educational MVP • Monthly World Bank RTFP data • Optional external integrations</text>
+ <rect x="44" y="155" rx="16" width="255" height="135" class="panel"/>
+ <text x="64" y="189" class="title">Source Data</text><text x="64" y="217" class="txt">World Bank RTFP CSV</text><text x="64" y="240" class="txt">Future: verified sources</text><text x="64" y="263" class="txt">Observed ≠ estimated</text>
+ <path d="M300 223 H352" class="line"/>
+ <rect x="355" y="155" rx="16" width="255" height="135" class="alt"/>
+ <text x="375" y="189" class="title">Python ETL</text><text x="375" y="217" class="txt">Validate + standardize</text><text x="375" y="240" class="txt">Convert prices to NGN/kg</text><text x="375" y="263" class="txt">Cleaned data &amp; quality stats</text>
+ <path d="M610 223 H661" class="line"/>
+ <rect x="664" y="155" rx="16" width="455" height="135" class="panel"/>
+ <text x="684" y="189" class="title">Persistent Data Layer</text><text x="684" y="219" class="txt">Bundled normalized CSV (works offline)</text><text x="684" y="245" class="txt">Optional Supabase PostgreSQL sync</text><text x="684" y="269" class="txt">Source attribution + timestamp preserved</text>
+ <path d="M878 290 V345 H305 V370" class="line"/>
+ <path d="M878 345 H867 V370" class="line"/>
+ <rect x="57" y="372" rx="16" width="500" height="155" class="panel"/>
+ <text x="79" y="409" class="title">Machine Learning</text><text x="79" y="441" class="txt">XGBoost next-month prediction</text><text x="79" y="467" class="txt">6-month chronological test</text><text x="79" y="493" class="txt">Compare against last-price baseline</text>
+ <rect x="628" y="372" rx="16" width="500" height="155" class="panel"/>
+ <text x="650" y="409" class="title">Market Advisory Engine</text><text x="650" y="441" class="txt">Compare same crop and evidence type</text><text x="650" y="467" class="txt">Straight-line distance + user costs</text><text x="650" y="493" class="txt">Rank indicative net proceeds</text>
+ <path d="M310 527 V570 H556 V596" class="line"/>
+ <path d="M877 527 V570 H556" class="line"/>
+ <rect x="230" y="599" rx="14" width="652" height="69" class="alt"/>
+ <text x="252" y="625" class="title">Streamlit Farmer Dashboard</text>
+ <text x="252" y="652" class="txt">Crop &amp; market selector • Forecast • Compare • Quality view • n8n alert webhook</text>
+ <rect x="910" y="581" rx="12" width="234" height="86" fill="#fff" stroke="#b5d3c0" stroke-dasharray="6 4" stroke-width="2"/>
+ <text x="931" y="609" class="title">n8n → SMS</text><text x="931" y="635" class="txt">Optional &amp; unconfigured</text><path d="M881 628 H908" class="line dashed"/>
+</svg>

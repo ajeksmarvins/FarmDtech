@@ -1,0 +1,71 @@
+{
+  "name": "FarmDtech | Twilio SMS (REQUIRES CREDENTIALS)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "farmdtech-sms",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "6b119120-72f1-419d-ad9d-204f2d964f7e",
+      "name": "Incoming SMS Request",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 360],
+      "webhookId": "92a39acb-a27a-4fd8-9a67-03aa746cf4a1"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || {};\nif (!/^\\+[1-9]\\d{7,14}$/.test(body.phone || '')) throw new Error('Valid phone required');\nif (typeof body.recommendation !== 'string' || !body.recommendation.startsWith('FarmDtech:') || body.recommendation.length > 500) throw new Error('Invalid message');\nreturn [{json:{phone:body.phone, message:body.recommendation}}];"
+      },
+      "id": "bd216d28-1c61-4ace-ad9f-1b55c538bb8e",
+      "name": "Validate Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 360]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.twilio.com/2010-04-01/Accounts/{{$env.TWILIO_ACCOUNT_SID}}/Messages.json",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {"parameters": [
+          {"name": "To", "value": "={{$json.phone}}"},
+          {"name": "From", "value": "={{$env.TWILIO_FROM_NUMBER}}"},
+          {"name": "Body", "value": "={{$json.message}}"}
+        ]},
+        "options": {}
+      },
+      "id": "c44762f5-9e27-4b08-919d-cdc70ca32c0c",
+      "name": "Send SMS using Twilio",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [680, 360]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({accepted_by_provider: true, provider_status: $json.status, message_sid: $json.sid, delivery_confirmed: false}) }}",
+        "options": {}
+      },
+      "id": "2dcd62ae-ecb8-4f5d-a015-bfae9a30c34b",
+      "name": "Respond: Provider Accepted",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [900, 360]
+    }
+  ],
+  "connections": {
+    "Incoming SMS Request": {"main": [[{"node": "Validate Request", "type": "main", "index": 0}]]},
+    "Validate Request": {"main": [[{"node": "Send SMS using Twilio", "type": "main", "index": 0}]]},
+    "Send SMS using Twilio": {"main": [[{"node": "Respond: Provider Accepted", "type": "main", "index": 0}]]}
+  },
+  "active": false,
+  "settings": {"executionOrder": "v1"},
+  "pinData": {},
+  "tags": []
+}

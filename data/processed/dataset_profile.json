@@ -1,0 +1,57 @@
+{
+  "rows": 52283,
+  "states": 15,
+  "markets": 67,
+  "source": "World Bank Real-Time Food Prices Nigeria, version 2026-10-05",
+  "notes": "RTFP estimated monthly closing prices are MODEL ESTIMATES, not live observed quotes.",
+  "crop_coverage": [
+    {
+      "crop": "Beans",
+      "kind": "observed",
+      "records": 2211,
+      "markets": 51,
+      "first": "2016-01-01",
+      "last": "2026-09-01"
+    },
+    {
+      "crop": "Beans",
+      "kind": "estimated",
+      "records": 15946,
+      "markets": 67,
+      "first": "2007-01-01",
+      "last": "2026-10-01"
+    },
+    {
+      "crop": "Maize",
+      "kind": "observed",
+      "records": 1204,
+      "markets": 7,
+      "first": "2007-01-01",
+      "last": "2026-08-01"
+    },
+    {
+      "crop": "Maize",
+      "kind": "estimated",
+      "records": 15946,
+      "markets": 67,
+      "first": "2007-01-01",
+      "last": "2026-10-01"
+    },
+    {
+      "crop": "Rice",
+      "kind": "observed",
+      "records": 1030,
+      "markets": 7,
+      "first": "2009-05-01",
+      "last": "2026-08-01"
+    },
+    {
+      "crop": "Rice",
+      "kind": "estimated",
+      "records": 15946,
+      "markets": 67,
+      "first": "2007-01-01",
+      "last": "2026-10-01"
+    }
+  ]
+}

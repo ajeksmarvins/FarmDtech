@@ -1,0 +1,45 @@
+{
+  "name": "FarmDtech | Advisory webhook (demo acknowledgement)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "farmdtech-alert",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "df21c95b-ae7b-471b-8184-71b88d17b513",
+      "name": "Receive FarmDtech Advisory",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 340],
+      "webhookId": "d6b57473-2dbc-4ad4-aa3c-75c9cfa0c28a"
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\nconst body = item.body || {};\nconst required = ['phone','crop','market','data_month','recommendation'];\nfor (const field of required) { if (typeof body[field] !== 'string' || !body[field].trim()) { throw new Error('Missing field: ' + field); } }\nif (!/^\\+[1-9]\\d{7,14}$/.test(body.phone)) { throw new Error('Invalid international phone format'); }\nconst allowed = ['Maize','Rice','Beans'];\nif (!allowed.includes(body.crop)) { throw new Error('Unsupported crop'); }\nreturn [{ json: { acknowledged: true, delivery_status: 'not_configured', is_demo: true, crop: body.crop, market: body.market, message: body.recommendation, note: 'No SMS sent: install/configure an SMS provider node before claiming delivery.' } }];"
+      },
+      "id": "d7247fd4-0df3-4bbb-8e96-885963d53f5c",
+      "name": "Validate and Format Advisory",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [480, 340]
+    },
+    {
+      "parameters": {"respondWith": "json", "responseBody": "={{ JSON.stringify($json) }}", "options": {}},
+      "id": "cc56ab7b-f42a-4495-97e1-5d6db6f37bc4",
+      "name": "Confirm Receipt (No SMS)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [720, 340]
+    }
+  ],
+  "connections": {
+    "Receive FarmDtech Advisory": {"main": [[{"node": "Validate and Format Advisory", "type": "main", "index": 0}]]},
+    "Validate and Format Advisory": {"main": [[{"node": "Confirm Receipt (No SMS)", "type": "main", "index": 0}]]}
+  },
+  "active": false,
+  "settings": {"executionOrder": "v1"},
+  "pinData": {},
+  "tags": []
+}

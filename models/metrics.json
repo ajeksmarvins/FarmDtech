@@ -1,0 +1,62 @@
+{
+  "Beans": {
+    "crop": "Beans",
+    "data_source": "World Bank RTFP estimated monthly closing prices",
+    "evaluation_target": "held-out model-estimated prices (not independent observed price validation)",
+    "forecast_horizon": "next month",
+    "train_last_month": "2026-04-01",
+    "test_first_month": "2026-05-01",
+    "test_last_month": "2026-10-01",
+    "model": {
+      "mae_ngn_per_kg": 79.76,
+      "wmape_percent": 7.51,
+      "n_test": 402
+    },
+    "naive_last_month_baseline": {
+      "mae_ngn_per_kg": 57.13,
+      "wmape_percent": 5.38,
+      "n_test": 402
+    },
+    "trained_through": "2026-10-01"
+  },
+  "Maize": {
+    "crop": "Maize",
+    "data_source": "World Bank RTFP estimated monthly closing prices",
+    "evaluation_target": "held-out model-estimated prices (not independent observed price validation)",
+    "forecast_horizon": "next month",
+    "train_last_month": "2026-04-01",
+    "test_first_month": "2026-05-01",
+    "test_last_month": "2026-10-01",
+    "model": {
+      "mae_ngn_per_kg": 28.15,
+      "wmape_percent": 6.18,
+      "n_test": 402
+    },
+    "naive_last_month_baseline": {
+      "mae_ngn_per_kg": 19.45,
+      "wmape_percent": 4.27,
+      "n_test": 402
+    },
+    "trained_through": "2026-10-01"
+  },
+  "Rice": {
+    "crop": "Rice",
+    "data_source": "World Bank RTFP estimated monthly closing prices",
+    "evaluation_target": "held-out model-estimated prices (not independent observed price validation)",
+    "forecast_horizon": "next month",
+    "train_last_month": "2026-04-01",
+    "test_first_month": "2026-05-01",
+    "test_last_month": "2026-10-01",
+    "model": {
+      "mae_ngn_per_kg": 83.4,
+      "wmape_percent": 5.14,
+      "n_test": 402
+    },
+    "naive_last_month_baseline": {
+      "mae_ngn_per_kg": 63.46,
+      "wmape_percent": 3.91,
+      "n_test": 402
+    },
+    "trained_through": "2026-10-01"
+  }
+}
