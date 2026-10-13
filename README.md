@@ -59,6 +59,14 @@ python -m pytest -q
 - Basket normalization: `beans`/`c_beans` ÷2.5 kg; `maize_fao`/`c_maize_fao` per 1 kg; `rice_fao`/`c_rice_fao` per 1 kg. The separate `rice` 2.8 kg series is not mixed with this rice series.
 - Raw dataset has 17,612 rows and 74 geographic identifiers including national/zone averages. The cleaned **52,283** records cover 67 physical market identifiers and 15 state labels. The prototype does **not** cover every Nigerian state.
 
+## Nationwide farmer origins (location upgrade)
+
+**All 36 Nigerian states plus FCT/Abuja are selectable as farmer origins** using approximate state/FCT representative coordinates from [Open Admin Data Nigeria](https://openadmindata.org/ng/) (attributed to OCHA COD-AB/INEC). These points approximate the geographic origin when a user has not entered coordinates; they do **not** identify the farmer's exact location or street routes.
+
+Farmers can optionally enter more precise coordinates. All **selling-market prices** and forecasts remain limited to markets actually present in the World Bank dataset. **Choosing FCT/Abuja does not create FCT crop prices**; the dashboard explicitly reports missing same-state quotes and does not calculate imaginary local gains. The price forecast tab independently selects a priced market, defaulting to the nearest available market reference.
+
+The current transport calculation uses straight-line distance, so it is only a rough scenario estimate. When expanding to real users, add road travel time, transport-vehicle capacity and independently verified local observations.
+
 ## Price recommendation maths
 
 ```text
