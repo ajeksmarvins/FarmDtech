@@ -14,7 +14,8 @@ import plotly.express as px
 import streamlit as st
 from alerts import format_advice, send_to_n8n
 from src.cleaning import CROPS, latest_prices
-from src.recommend import rank_markets
+from src.recommend import rank_markets, haversine_km
+from src.locations import STATE_REFERENCE_POINTS, local_net_reference
 
 ROOT = Path(__file__).resolve().parent
 DATA = ROOT / "data/processed/prices_long.csv"
@@ -74,13 +75,27 @@ with st.sidebar:
                           help="Estimated is modelled, not a live market quote. Observed data may be much older.")
     kind = "estimated" if kind_label.startswith("World Bank") else "observed"
     pool = latest_prices(prices, crop, kind)
-    markets = prices.loc[(prices.crop == crop) & (prices.price_kind == "estimated"), ["market_id", "market", "state", "latitude", "longitude"]].drop_duplicates("market_id")
+    # Your home state/FCT is independent of the set of markets with price data.
+    home_options = sorted(STATE_REFERENCE_POINTS)
+    home_state = st.selectbox("Where is your farm? (State / FCT)", home_options,
+                              index=home_options.index("FCT (Abuja)"),
+                              help="All 36 states and FCT are supported as origins. A state choice does not imply local prices are available.")
+    origin_lat, origin_lon = STATE_REFERENCE_POINTS[home_state]
+    use_exact_location = st.checkbox("Use a more precise origin (coordinates)", value=False,
+                                      help="Optional: use your farm's approximate coordinates instead of the state representative point.")
+    if use_exact_location:
+        origin_lat = st.number_input("Latitude (°N)", min_value=4.0, max_value=14.0,
+                                     value=float(origin_lat), step=0.01, format="%.4f")
+        origin_lon = st.number_input("Longitude (°E)", min_value=2.0, max_value=15.0,
+                                     value=float(origin_lon), step=0.01, format="%.4f")
+        st.caption("Custom coordinates improve straight-line estimates but are not road distances.")
+    else:
+        st.caption("Using an approximate state/FCT reference point, not your farm or Abuja city centre. Select custom coordinates for better distance estimates.")
+    # Selling markets still come ONLY from the real source dataset.
+    markets = prices.loc[(prices.crop == crop) & (prices.price_kind == "estimated"),
+                         ["market_id", "market", "state", "latitude", "longitude"]].drop_duplicates("market_id")
     markets = markets.sort_values(["state", "market"]).reset_index(drop=True)
-    options = (markets.state + " · " + markets.market).tolist()
-    guess = next((i for i, v in enumerate(options) if 'Kano · Kano' in v), 0)
-    home = st.selectbox("Your closest market / location", options, index=guess,
-                         help="Used as an approximate geographic origin; it is not necessarily your farm's exact location.")
-    origin = markets.iloc[options.index(home)]
+    market_options = (markets.state + " · " + markets.market).tolist()
     quantity = st.number_input("Quantity to sell (kg)", min_value=1.0, max_value=250000.0, value=1000.0, step=50.0)
     per_km = st.number_input("Estimated transport cost (₦ per km)", min_value=0.0, value=200.0, step=25.0)
     fixed_fee = st.number_input("Market/loading fees (₦)", min_value=0.0, value=5000.0, step=500.0)
@@ -94,18 +109,20 @@ panel1, panel2, panel3, panel4 = st.tabs(["📍 Market advisor", "📈 Price for
 with panel1:
     st.subheader(f"Where could you sell {crop.lower()}?")
     st.markdown('<div class="note">⚠️ Prices below are historical survey values or World Bank <b>modelled estimates</b>, not verified real-time buying offers. Always confirm current buyer prices, crop grade and transportation costs.</div>', unsafe_allow_html=True)
-    results = rank_markets(pool, float(origin.latitude), float(origin.longitude), quantity, per_km, fixed_fee, radius)
+    st.caption(f"Farm origin: {home_state}. The map uses an approximate location; only source-backed market prices are compared.")
+    results = rank_markets(pool, float(origin_lat), float(origin_lon), quantity, per_km, fixed_fee, radius)
     if results.empty:
-        st.warning("No qualifying market prices found. Try a wider search radius or the estimated series.")
+        st.warning(f"No {crop.lower()} market records of this evidence type are available within {radius} straight-line km of {home_state}. Try a wider radius or a different evidence type. This does not mean that local markets do not exist.")
     else:
-        current_reference = results.loc[results.market_id == origin.market_id]
         winner = results.iloc[0]
-        baseline = float(current_reference.iloc[0].net_ngn) if not current_reference.empty else None
+        baseline = local_net_reference(results, home_state)
         a,b,c,d = st.columns(4)
         a.metric("Best indicative market", str(winner.market))
         b.metric("Estimated price / kg", ngn(winner.price_ngn_per_kg))
         c.metric("Indicative net proceeds", ngn(winner.net_ngn))
-        d.metric("Possible gain vs local", ngn(winner.net_ngn - baseline) if baseline is not None else "No local quote")
+        d.metric("Gain vs best same-state market", ngn(max(0.0, float(winner.net_ngn) - baseline)) if baseline is not None else "Unavailable")
+        if baseline is None:
+            st.info(f"There is no {kind} {crop.lower()} price record for a qualifying market in {home_state}. No local market price or gain comparison has been invented.")
         st.caption(f"Based on {kind} prices. Winning market: {winner.market}, {winner.state}; data month: {pd.to_datetime(winner.date).strftime('%b %Y')}. All comparisons use identical commodity and price-source type.")
         if bool(results.stale.any()):
             st.warning("One or more results are older than 65 days. Check the individual data dates before making a selling decision.")
@@ -156,7 +173,17 @@ with panel2:
     if forecasts.empty or crop not in metrics:
         st.warning("Forecast models not found. Run `python scripts/train_models.py` and refresh the application.")
     else:
-        forecast = forecasts[(forecasts.crop == crop) & (forecasts.market_id == origin.market_id)]
+        # Select a priced market for forecasting; a farmer's home state need not
+        # have a local price observation or a prediction.
+        nearest_forecast_market = min(range(len(markets)), key=lambda i: haversine_km(
+            float(origin_lat), float(origin_lon), float(markets.iloc[i].latitude), float(markets.iloc[i].longitude)))
+        forecast_market_label = st.selectbox("Market to forecast (markets with data only)", market_options,
+                                             index=nearest_forecast_market,
+                                             help="This is a selling market with source data, not necessarily your home state.")
+        forecast_market = markets.iloc[market_options.index(forecast_market_label)]
+        if home_state == "FCT (Abuja)":
+            st.caption("FCT/Abuja is available as your origin; this dataset currently has no verified FCT market price.")
+        forecast = forecasts[(forecasts.crop == crop) & (forecasts.market_id == forecast_market.market_id)]
         if forecast.empty:
             st.warning("No forecast exists for this market.")
         else:
@@ -165,12 +192,12 @@ with panel2:
             c1.metric("Latest modelled price / kg", ngn(f.last_price_ngn_per_kg))
             c2.metric(f"Forecast for {pd.to_datetime(f.forecast_month).strftime('%b %Y')}", ngn(f.forecast_ngn_per_kg))
             c3.metric("Projected monthly change", f"{f.change_percent:+.1f}%")
-            history = prices[(prices.crop == crop) & (prices.market_id == origin.market_id)].copy()
+            history = prices[(prices.crop == crop) & (prices.market_id == forecast_market.market_id)].copy()
             history = history.sort_values("date")
             history = history[history.date >= history.date.max() - pd.DateOffset(months=35)]
             history["Evidence"] = history.price_kind.map({"observed": "Observed survey", "estimated": "World Bank modelled"})
             fig = px.line(history[history.price_kind == "estimated"], x="date", y="price_ngn_per_kg", markers=True,
-                          title=f"Price history — {origin.market}, {origin.state}", labels={"date":"Month", "price_ngn_per_kg":"NGN per kg"})
+                          title=f"Price history — {forecast_market.market}, {forecast_market.state}", labels={"date":"Month", "price_ngn_per_kg":"NGN per kg"})
             observed = history[history.price_kind == "observed"]
             if not observed.empty:
                 fig.add_scatter(x=observed.date, y=observed.price_ngn_per_kg, mode="markers", name="Observed survey", marker={"symbol": "diamond", "size":9, "color":"#ed9b4d"})
@@ -201,7 +228,7 @@ with panel3:
         subset = prices[(prices.crop == crop) & (prices.price_kind == "observed")]
         by_state = subset.groupby("state").size().sort_values().reset_index(name="observed_records")
         st.plotly_chart(px.bar(by_state, x="observed_records", y="state", orientation="h", title=f"Observed {crop.lower()} records by state"), use_container_width=True)
-    st.warning("Coverage is NOT all Nigerian states. The bundled data focuses on markets represented in the World Bank dataset. Use additional independently verified sources for nationwide expansion.")
+    st.warning("Origin selection supports 36 states plus FCT, but PRICE COVERAGE does not. State representative coordinates are not evidence of local market prices; obtain independently verified sources for nationwide expansion.")
     st.caption("When adding external farmer or trader prices, verify source, market, units, crop grade and date before merging with official observed data.")
 
 with panel4:
@@ -210,6 +237,7 @@ with panel4:
     st.write("The app chooses the market with the highest **indicative** net proceeds among the markets in your distance limit. It is a decision-support demo, not a firm buyer offer.")
     st.write("**Model:** XGBoost trained on 3 previous months of estimated price history, month seasonality and market coordinates. The last six months are held out chronologically for evaluation against a simple last-month baseline. For production, obtain verified weekly observed prices and validate on independent market observations.")
     st.write("**Data integrity:** The World Bank c_* fields represent estimated closing-price series; observed survey fields remain separate. Beans basket values are divided by 2.5 kg. Maize and the selected rice FAO series are already 1 kg. Aggregate zones and national averages are excluded from geographic recommendations.")
+    st.write("**Origin locations:** All 36 states and FCT are selectable as approximate starting points using representative administrative coordinates from Open Admin Data Nigeria (https://openadmindata.org/ng/). Selecting a state does NOT add a crop-price observation. A farmer can optionally enter more precise coordinates for distance estimates.")
     st.write("**Limitations:** Prices may be outdated, sampled or estimated; market survey definitions may differ; real routes and transport expenses can differ from straight-line estimates; transaction prices depend on grade, moisture, volume and negotiations.")
     st.markdown("[World Bank Nigeria RTFP dataset](https://microdata.worldbank.org/catalog/4503) · [Source project](https://microdata.worldbank.org/catalog/4503/get-microdata)")
     st.caption("© FarmDtech / PYCODE Team — educational research prototype")
