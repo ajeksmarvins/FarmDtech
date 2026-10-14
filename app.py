@@ -105,7 +105,7 @@ with st.sidebar:
     st.divider()
     st.caption("Research prototype · Historical & model-estimated prices · Not investment or guaranteed sales advice")
 
-panel1, panel2, panel3, panel4, panel5 = st.tabs(["📍 Market advisor", "📈 Price forecast", "🧪 Weekly research", "🗂 Data quality", "ℹ️ How it works"])
+panel1, panel2, panel5, panel3, panel4 = st.tabs(["📍 Market advisor", "📈 Price forecast", "🧪 Weekly research", "🗂 Data quality", "ℹ️ How it works"])
 
 with panel1:
     st.subheader(f"Where could you sell {crop.lower()}?")
