@@ -35,7 +35,7 @@ def test_price_types_do_not_mix():
 
 
 def test_chronological_split():
-    d=pd.concat([sample().assign(date=(pd.to_datetime(sample().date) + pd.Timedelta(weeks=k)).astype(str)) for k in range(132)], ignore_index=True)
+    d=pd.concat([sample().assign(date=(pd.to_datetime(sample().date) + pd.to_timedelta(k * 7, unit='D')).astype(str)) for k in range(132)], ignore_index=True)
     d=d.drop_duplicates("date", keep="first")
     features=make_weekly_features(weekly_prices(d))
     train,test=split_chronologically(features,test_weeks=35)

@@ -16,6 +16,7 @@ from alerts import format_advice, send_to_n8n
 from src.cleaning import CROPS, latest_prices
 from src.recommend import rank_markets, haversine_km
 from src.locations import STATE_REFERENCE_POINTS, local_net_reference
+from src.weekly_dashboard import render_historical_weekly_dashboard
 
 ROOT = Path(__file__).resolve().parent
 DATA = ROOT / "data/processed/prices_long.csv"
@@ -104,7 +105,7 @@ with st.sidebar:
     st.divider()
     st.caption("Research prototype · Historical & model-estimated prices · Not investment or guaranteed sales advice")
 
-panel1, panel2, panel3, panel4 = st.tabs(["📍 Market advisor", "📈 Price forecast", "🗂 Data quality", "ℹ️ How it works"])
+panel1, panel2, panel5, panel3, panel4 = st.tabs(["📍 Market advisor", "📈 Price forecast", "🧪 Weekly research", "🗂 Data quality", "ℹ️ How it works"])
 
 with panel1:
     st.subheader(f"Where could you sell {crop.lower()}?")
@@ -213,6 +214,9 @@ with panel2:
         if score['model']['wmape_percent'] >= score['naive_last_month_baseline']['wmape_percent']:
             st.warning("The XGBoost model did not beat the simple last-month baseline in held-out evaluation. Do not present it as more accurate.")
         st.download_button("⬇️ Download all forecasts", forecasts[forecasts.crop == crop].to_csv(index=False).encode(), file_name=f"farmdtech_{crop.lower()}_forecasts.csv", mime="text/csv")
+
+with panel5:
+    render_historical_weekly_dashboard(ROOT)
 
 with panel3:
     st.subheader("Source transparency and data quality")

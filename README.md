@@ -49,6 +49,10 @@ python -m pytest -q
 | Data quality | View observed vs estimated records by crop and available market coverage |
 | How it works | Understand source, algorithm, units, maths and limits |
 
+## Historical weekly research tab
+
+The dashboard includes a separate **Weekly research** tab for historical next-week backtests (FEWS NET observations through 2024, not current quotes). The compact result files must be exported locally and committed to enable the public chart. See [Historical Weekly Dashboard deployment guide](docs/HISTORICAL_WEEKLY_DASHBOARD.md). The full weekly source file remains local by default.
+
 ## Data source and rights
 
 - **Source:** World Bank, Real-Time Food Prices (RTFP), Nigeria, dataset version **2026-10-05**, [`NGA_RTFP_mkt_2007_2026-10-05.csv`](https://microdata.worldbank.org/catalog/4503/get-microdata).
