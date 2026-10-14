@@ -17,7 +17,7 @@ from src.cleaning import CROPS, latest_prices
 from src.recommend import rank_markets, haversine_km
 from src.locations import STATE_REFERENCE_POINTS, local_net_reference
 from src.weekly_dashboard import render_historical_weekly_dashboard
-from src.cloud_prices import fetch_readonly_prices, CloudPriceError
+from src.cloud_prices import fetch_private_prices, CloudPriceError
 
 ROOT = Path(__file__).resolve().parent
 DATA = ROOT / "data/processed/prices_long.csv"
@@ -38,19 +38,28 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 @st.cache_data(ttl=1800, show_spinner="Loading market price data…")
-def load_data(project_url: str = "", publishable_key: str = "") -> tuple[pd.DataFrame, str, str]:
-    """Prefer Supabase read-only data; fall back to bundled historical CSV.
+def load_data(
+    project_url: str = "",
+    publishable_key: str = "",
+    reader_email: str = "",
+    reader_password: str = "",
+) -> tuple[pd.DataFrame, str, str]:
+    """Read historical prices from private Supabase or fall back to local CSV.
 
-    The source is historical World Bank observations/estimates either way.
-    Streamlit caches the cloud response for 30 minutes to reduce API load.
+    A dedicated Supabase Auth account with SELECT-only RLS signs in on the
+    Streamlit server. This function caches the data for 30 minutes.
     """
     failure = ""
-    if project_url and publishable_key:
+    if all((project_url, publishable_key, reader_email, reader_password)):
         try:
-            data = fetch_readonly_prices(project_url, publishable_key)
-            return data, "Supabase (historical World Bank prices)", ""
+            data = fetch_private_prices(
+                project_url, publishable_key, reader_email, reader_password
+            )
+            return data, "Private Supabase reader (historical World Bank prices)", ""
         except (CloudPriceError, ValueError) as exc:
             failure = str(exc)
+    elif any((project_url, publishable_key, reader_email, reader_password)):
+        failure = "Private Supabase reader configuration is incomplete"
     if DATA.exists():
         data = pd.read_csv(DATA, low_memory=False, parse_dates=["date"])
         return data, "Bundled historical CSV (fallback)" if failure else "Bundled historical CSV", failure
@@ -83,6 +92,8 @@ try:
     prices, price_source, cloud_warning = load_data(
         config("SUPABASE_URL"),
         config("SUPABASE_PUBLISHABLE_KEY"),
+        config("SUPABASE_READER_EMAIL"),
+        config("SUPABASE_READER_PASSWORD"),
     )
 except RuntimeError as exc:
     st.error(str(exc))
@@ -90,7 +101,7 @@ except RuntimeError as exc:
 
 st.caption(f"Price database: {price_source}. Data are historical/model-estimated, NOT real-time offers.")
 if cloud_warning:
-    st.warning("Supabase is temporarily unavailable or not authorized. FarmDtech is using the bundled historical CSV. " + cloud_warning)
+    st.warning("Private Supabase access is unavailable or not configured. FarmDtech is using the bundled historical CSV. " + cloud_warning)
 with st.sidebar:
     st.header("🧺 Farmer details")
     crop = st.selectbox("Crop", list(CROPS), index=1, help="The app uses one consistent source series for each crop.")

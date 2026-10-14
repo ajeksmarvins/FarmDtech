@@ -97,9 +97,9 @@ The model uses the 3 prior monthly estimated prices, seasonality and market coor
 
 The official course brief asks for next-week forecasting, but this source is monthly. Predicting a specific week from monthly values would present spurious precision. Before final submission, source sufficiently frequent **weekly observed price records**, define comparable crops, train weekly lag features, and evaluate on strictly held-out observed weekly prices. This MVP uses next-month predictions **explicitly**.
 
-## Public dashboard read-only Supabase integration
+## Private Supabase reader for the public dashboard
 
-The public Streamlit app can read historical World Bank prices from Supabase using a **publishable (anon) key** and explicit SELECT-only RLS policy, with a 30-minute cache and bundled CSV fallback. **Never put a service-role or secret key into the public dashboard.** See [Secure read-only dashboard setup](docs/SUPABASE_READONLY_DASHBOARD.md) and the opt-in policy at `supabase/readonly_prices_policy.sql`.
+The public Streamlit server can read historical World Bank prices through a **dedicated email/password Supabase Auth reader account**, protected by a UUID-scoped SELECT-only RLS policy. This keeps the underlying Supabase table inaccessible to anonymous API callers. The Streamlit server stores the reader credentials in **Streamlit Secrets**, never in GitHub; a 30-minute cached CSV fallback is retained. The public app still reveals price data to its visitors through its UI. See [private reader setup instructions](docs/SUPABASE_PRIVATE_READER.md) and the opt-in policy `supabase/private_reader_policy.sql`.
 
 ## Optional Supabase database
 
