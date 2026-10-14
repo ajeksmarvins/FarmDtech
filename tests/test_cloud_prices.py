@@ -1,76 +1,125 @@
-"""No network or credentials needed: test read-only paginated Supabase prices."""
+"""Private Supabase reads: no real credentials or network are needed."""
 import pytest
-from src.cloud_prices import CloudPriceError, fetch_readonly_prices
+import requests
+
+from src.cloud_prices import CloudPriceError, fetch_private_prices
 
 URL = "https://exampleabc.supabase.co"
-KEY = "sb_publishable_sample_not_a_secret"
+KEY = "sb_publishable_sample_key"
+EMAIL = "reader@example.org"
+PASSWORD = "test-password-not-real"
+
 
 class DummyResponse:
-    def __init__(self, rows):
-        self.rows = rows
+    def __init__(self, content, status_error=None):
+        self.content = content
+        self.status_error = status_error
 
     def raise_for_status(self):
-        return None
+        if self.status_error:
+            raise self.status_error
 
     def json(self):
-        return self.rows
+        return self.content
 
 
-def price_row(i):
+def row(number):
     return {
-        "id": i, "date": "2026-10-01", "crop": "Maize",
-        "market_id": f"m{i}", "market": f"Market {i}",
+        "id": number, "date": "2026-10-01", "crop": "Maize",
+        "market_id": f"m{number}", "market": f"Market {number}",
         "state": "Kaduna", "latitude": 10.0, "longitude": 8.0,
-        "price_ngn_per_kg": 400.0 + i, "price_kind": "estimated",
+        "price_ngn_per_kg": 400 + number, "price_kind": "estimated",
     }
 
 
-def test_paginated_prices_are_complete_and_sorted():
-    all_rows = [price_row(i) for i in range(1, 6)]
+def test_authentication_and_private_paginated_reads():
+    sample = [row(i) for i in range(1, 6)]
     calls = []
 
-    def fake_get(url, *, params, headers, timeout):
+    def mock_post(url, *, params, json, headers, timeout):
+        assert url == URL + "/auth/v1/token"
+        assert params == {"grant_type": "password"}
+        assert json == {"email": EMAIL, "password": PASSWORD}
+        assert headers["apikey"] == KEY
+        assert timeout == 20
+        return DummyResponse({"access_token": "short-lived-test-jwt"})
+
+    def mock_get(url, *, params, headers, timeout):
         assert url == URL + "/rest/v1/prices"
         assert headers["apikey"] == KEY
-        assert "Authorization" not in headers
+        assert headers["Authorization"] == "Bearer short-lived-test-jwt"
         assert timeout == 20
-        calls.append(int(params["offset"]))
         offset, limit = int(params["offset"]), int(params["limit"])
-        return DummyResponse(all_rows[offset:offset+limit])
+        calls.append(offset)
+        return DummyResponse(sample[offset:offset + limit])
 
-    result = fetch_readonly_prices(URL, KEY, page_size=2, get=fake_get)
-    assert len(result) == 5
+    data = fetch_private_prices(
+        URL, KEY, EMAIL, PASSWORD, page_size=2,
+        post=mock_post, get=mock_get,
+    )
     assert calls == [0, 2, 4]
-    assert result.market_id.tolist() == ["m1", "m2", "m3", "m4", "m5"]
+    assert len(data) == 5
+    assert data.market_id.tolist() == ["m1", "m2", "m3", "m4", "m5"]
 
 
-def test_empty_result_requires_rls_policy():
-    def fake_get(url, *, params, headers, timeout):
+def test_no_access_without_user_session():
+    def mock_post(url, *, params, json, headers, timeout):
+        return DummyResponse({})
+
+    with pytest.raises(CloudPriceError, match="no access token"):
+        fetch_private_prices(URL, KEY, EMAIL, PASSWORD, post=mock_post)
+
+
+def test_denied_rls_does_not_return_rows():
+    def mock_post(url, *, params, json, headers, timeout):
+        return DummyResponse({"access_token": "test-jwt"})
+
+    def mock_get(url, *, params, headers, timeout):
         return DummyResponse([])
 
-    with pytest.raises(CloudPriceError, match="no visible"):
-        fetch_readonly_prices(URL, KEY, get=fake_get)
+    with pytest.raises(CloudPriceError, match="No private price rows visible"):
+        fetch_private_prices(URL, KEY, EMAIL, PASSWORD, post=mock_post, get=mock_get)
 
 
-def test_service_role_and_secret_rejected():
+def test_failed_auth_error_does_not_echo_password():
+    def mock_post(url, *, params, json, headers, timeout):
+        return DummyResponse({}, requests.HTTPError("do not propagate"))
+
+    with pytest.raises(CloudPriceError) as exc:
+        fetch_private_prices(URL, KEY, EMAIL, PASSWORD, post=mock_post)
+    assert PASSWORD not in str(exc.value)
+    assert "authentication failed" in str(exc.value)
+
+
+@pytest.mark.parametrize("unsafe_key", ["sb_secret_12345", "legacy-service-jwt-key"])
+def test_privileged_keys_rejected(unsafe_key):
     with pytest.raises(CloudPriceError, match="publishable"):
-        fetch_readonly_prices(URL, "sb_secret_any_very_powerful_value")
-    with pytest.raises(CloudPriceError, match="publishable"):
-        fetch_readonly_prices(URL, "eyJ_service_role_legacy")
+        fetch_private_prices(URL, unsafe_key, EMAIL, PASSWORD)
 
 
-def test_invalid_url_rejected():
-    with pytest.raises(CloudPriceError, match="Invalid"):
-        fetch_readonly_prices("http://localhost", KEY)
-    with pytest.raises(CloudPriceError, match="Invalid"):
-        fetch_readonly_prices("https://example.supabase.co.attacker.net", KEY)
+@pytest.mark.parametrize("unsafe_url", [
+    "http://localhost:8000", "https://example.supabase.co.evil.com",
+    "https://example.supabase.co/path", "https://example.supabase.co@evil.net",
+])
+def test_invalid_url_rejected(unsafe_url):
+    with pytest.raises(CloudPriceError, match="Invalid Supabase"):
+        fetch_private_prices(unsafe_url, KEY, EMAIL, PASSWORD)
 
 
-def test_duplicate_market_date_rows_rejected():
-    a, b = price_row(1), price_row(2)
+def test_reader_credentials_required():
+    with pytest.raises(CloudPriceError, match="required"):
+        fetch_private_prices(URL, KEY, "", "")
+
+
+def test_duplicate_rows_rejected():
+    a, b = row(1), row(2)
     b["market_id"] = a["market_id"]
-    def fake_get(url, *, params, headers, timeout):
+
+    def mock_post(url, *, params, json, headers, timeout):
+        return DummyResponse({"access_token": "test-jwt"})
+
+    def mock_get(url, *, params, headers, timeout):
         return DummyResponse([a, b])
 
-    with pytest.raises(CloudPriceError, match="duplicate"):
-        fetch_readonly_prices(URL, KEY, get=fake_get)
+    with pytest.raises(CloudPriceError, match="duplicate price keys"):
+        fetch_private_prices(URL, KEY, EMAIL, PASSWORD, post=mock_post, get=mock_get)
