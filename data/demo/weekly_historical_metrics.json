@@ -1,0 +1,65 @@
+{
+  "Maize": {
+    "crop": "Maize",
+    "forecast_horizon": "one calendar week",
+    "data_last_week": "2024-04-29",
+    "train_last_week": "2023-10-30",
+    "test_first_week": "2023-11-06",
+    "test_last_week": "2024-04-29",
+    "model": {
+      "mae_ngn_per_kg": 41.63,
+      "wmape_percent": 7.96,
+      "records": 1574
+    },
+    "last_week_baseline": {
+      "mae_ngn_per_kg": 23.73,
+      "wmape_percent": 4.54,
+      "records": 1574
+    },
+    "evaluation_target": "held-out reported historical FEWS NET weekly prices",
+    "current_price_available": false,
+    "warning": "Historical only through 2024; scores do not establish 2026 price accuracy"
+  },
+  "Beans": {
+    "crop": "Beans",
+    "forecast_horizon": "one calendar week",
+    "data_last_week": "2024-04-29",
+    "train_last_week": "2023-10-30",
+    "test_first_week": "2023-11-06",
+    "test_last_week": "2024-04-29",
+    "model": {
+      "mae_ngn_per_kg": 132.59,
+      "wmape_percent": 15.29,
+      "records": 1576
+    },
+    "last_week_baseline": {
+      "mae_ngn_per_kg": 50.39,
+      "wmape_percent": 5.81,
+      "records": 1576
+    },
+    "evaluation_target": "held-out reported historical FEWS NET weekly prices",
+    "current_price_available": false,
+    "warning": "Historical only through 2024; scores do not establish 2026 price accuracy"
+  },
+  "Rice": {
+    "crop": "Rice",
+    "forecast_horizon": "one calendar week",
+    "data_last_week": "2024-04-29",
+    "train_last_week": "2023-10-30",
+    "test_first_week": "2023-11-06",
+    "test_last_week": "2024-04-29",
+    "model": {
+      "mae_ngn_per_kg": 156.36,
+      "wmape_percent": 14.42,
+      "records": 1363
+    },
+    "last_week_baseline": {
+      "mae_ngn_per_kg": 43.23,
+      "wmape_percent": 3.99,
+      "records": 1363
+    },
+    "evaluation_target": "held-out reported historical FEWS NET weekly prices",
+    "current_price_available": false,
+    "warning": "Historical only through 2024; scores do not establish 2026 price accuracy"
+  }
+}
