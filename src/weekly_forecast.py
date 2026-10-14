@@ -49,7 +49,7 @@ def make_weekly_features(weekly: pd.DataFrame) -> pd.DataFrame:
         raise ValueError("Multiple price rows for the same commodity-market-week series")
     for n in range(1, 5):
         lag = df[SERIES + ["week_start", "price_ngn_per_kg"]].copy()
-        lag["week_start"] = lag.week_start + pd.Timedelta(weeks=n)
+        lag["week_start"] = lag.week_start + pd.to_timedelta(n * 7, unit='D')
         lag = lag.rename(columns={"price_ngn_per_kg": f"lag{n}"})
         df = df.merge(lag, on=SERIES + ["week_start"], how="left", validate="one_to_one")
     df = df.dropna(subset=LAGS).copy()
@@ -65,7 +65,7 @@ def split_chronologically(features: pd.DataFrame, test_weeks: int = 26):
     """Hold out the last N calendar weeks, not a random train/test shuffle."""
     if features.empty:
         raise ValueError("No continuous four-week histories are available")
-    cutoff = features.week_start.max() - pd.Timedelta(weeks=test_weeks - 1)
+    cutoff = features.week_start.max() - pd.to_timedelta((test_weeks - 1) * 7, unit='D')
     train = features.loc[features.week_start < cutoff].copy()
     test = features.loc[features.week_start >= cutoff].copy()
     if len(train) < 100 or len(test) < 30:
