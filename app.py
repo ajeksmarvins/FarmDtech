@@ -17,6 +17,7 @@ from src.cleaning import CROPS, latest_prices
 from src.recommend import rank_markets, haversine_km
 from src.locations import STATE_REFERENCE_POINTS, local_net_reference
 from src.weekly_dashboard import render_historical_weekly_dashboard
+from src.cloud_prices import fetch_readonly_prices, CloudPriceError
 
 ROOT = Path(__file__).resolve().parent
 DATA = ROOT / "data/processed/prices_long.csv"
@@ -36,10 +37,24 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-@st.cache_data(show_spinner="Loading the price dataset…")
-def load_data() -> pd.DataFrame:
-    d = pd.read_csv(DATA, low_memory=False, parse_dates=["date"])
-    return d
+@st.cache_data(ttl=1800, show_spinner="Loading market price data…")
+def load_data(project_url: str = "", publishable_key: str = "") -> tuple[pd.DataFrame, str, str]:
+    """Prefer Supabase read-only data; fall back to bundled historical CSV.
+
+    The source is historical World Bank observations/estimates either way.
+    Streamlit caches the cloud response for 30 minutes to reduce API load.
+    """
+    failure = ""
+    if project_url and publishable_key:
+        try:
+            data = fetch_readonly_prices(project_url, publishable_key)
+            return data, "Supabase (historical World Bank prices)", ""
+        except (CloudPriceError, ValueError) as exc:
+            failure = str(exc)
+    if DATA.exists():
+        data = pd.read_csv(DATA, low_memory=False, parse_dates=["date"])
+        return data, "Bundled historical CSV (fallback)" if failure else "Bundled historical CSV", failure
+    raise RuntimeError("No usable cloud prices and bundled CSV is missing" + (f": {failure}" if failure else ""))
 
 @st.cache_data(show_spinner=False)
 def load_forecasts() -> pd.DataFrame:
@@ -64,11 +79,18 @@ def config(name: str) -> str:
         return ""
 
 st.markdown('<div class="hero"><h1>🌱 FarmDtech</h1><p>Ask. Receive. Decide. &nbsp;|&nbsp; Crop price intelligence for Nigerian farmers</p></div>', unsafe_allow_html=True)
-if not DATA.exists():
-    st.error("Processed dataset missing. Run `python scripts/prepare_data.py` in VS Code, then reload this page.")
+try:
+    prices, price_source, cloud_warning = load_data(
+        config("SUPABASE_URL"),
+        config("SUPABASE_PUBLISHABLE_KEY"),
+    )
+except RuntimeError as exc:
+    st.error(str(exc))
     st.stop()
 
-prices = load_data()
+st.caption(f"Price database: {price_source}. Data are historical/model-estimated, NOT real-time offers.")
+if cloud_warning:
+    st.warning("Supabase is temporarily unavailable or not authorized. FarmDtech is using the bundled historical CSV. " + cloud_warning)
 with st.sidebar:
     st.header("🧺 Farmer details")
     crop = st.selectbox("Crop", list(CROPS), index=1, help="The app uses one consistent source series for each crop.")
