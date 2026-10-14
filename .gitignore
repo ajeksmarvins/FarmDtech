@@ -5,3 +5,10 @@ __pycache__/
 .pytest_cache/
 .streamlit/secrets.toml
 .DS_Store
+
+# FEWS NET weekly historical research data (prepared locally)
+/data/raw/fews_weekly/
+/data/processed/fews_weekly_prices.csv
+/data/processed/fews_weekly_profile.json
+/data/processed/weekly_historical_backtest.csv
+/models/weekly_historical_metrics.json
