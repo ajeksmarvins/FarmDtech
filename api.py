@@ -41,7 +41,7 @@ app = FastAPI(
 )
 
 
-# Read allowed frontend origins from Render environment variables
+# CORS configuration for FarmDtech
 allowed_origins = [
     origin.strip()
     for origin in os.getenv(
@@ -54,6 +54,7 @@ allowed_origins = [
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
+    allow_origin_regex=r"https://[a-zA-Z0-9-]+\.local-credentialless\.webcontainer-api\.io",
     allow_credentials=False,
     allow_methods=["GET"],
     allow_headers=["*"],
