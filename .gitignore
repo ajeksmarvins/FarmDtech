@@ -12,3 +12,6 @@ __pycache__/
 /data/processed/fews_weekly_profile.json
 /data/processed/weekly_historical_backtest.csv
 /models/weekly_historical_metrics.json
+
+# Internal project notes (never publish)
+START_HERE.md
