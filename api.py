@@ -308,7 +308,7 @@ def chat(request: ChatRequest):
             headers={"x-goog-api-key": key, "Content-Type": "application/json"},
             json={"systemInstruction": {"parts": [{"text": instructions}]},
                   "contents": contents,
-                  "generationConfig": {"maxOutputTokens": 1100, "thinkingConfig": {"thinkingBudget": 0}}},
+                  "generationConfig": {"maxOutputTokens": 1100}},
             timeout=35,
         )
         if response.status_code == 429:
