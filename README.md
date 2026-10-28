@@ -1,4 +1,4 @@
-🌱 FarmDtech — AI-Powered Crop Price Intelligence & Advisory System
+# 🌱 FarmDtech — AI-Powered Crop Price Intelligence & Advisory System
 
 Ask. Receive. Decide.
 
@@ -10,7 +10,7 @@ Status: Completed and Deployed Capstone MVP
 
 ⸻
 
-📖 Project Overview
+## 📖 Project Overview
 
 FarmDtech is an AI-powered agricultural intelligence platform developed to help Nigerian farmers, agricultural traders and stakeholders make informed decisions about crop prices and market opportunities.
 
@@ -22,17 +22,19 @@ FarmDtech focuses on three major staple crops:
 * Rice
 * Beans
 
-The platform is accessible through a web application, supported by a Python backend, cloud database and automation workflows.
+The project provides two Python-based application paths: an original Streamlit dashboard for interactive research and a FastAPI service deployed on Render that powers the React web application hosted on Vercel. Both use the project's crop-price research and forecasting resources, with deployment-specific data access and configuration.
 
-🌐 Live Project Links
+## 🌐 Live Project Links
 
-Component	Link
-Product Demo	https://farm-dtech-web.vercel.app
-GitHub Repository	https://github.com/ajeksmarvins/FarmDtech
-Backend API Documentation	https://farmdtech.onrender.com/docs
-Frontend Repository	https://github.com/ajeksmarvins/FarmDtech-Web
+| Component | Link |
+| --- | --- |
+| Product Demo | https://farm-dtech-web.vercel.app |
+| GitHub Repository | https://github.com/ajeksmarvins/FarmDtech |
+| FastAPI Backend (Render) | https://farmdtech.onrender.com |
+| Backend API Documentation | https://farmdtech.onrender.com/docs |
+| Frontend Repository | https://github.com/ajeksmarvins/FarmDtech-Web |
 
-🎯 Problem Statement
+## 🎯 Problem Statement
 
 Many Nigerian farmers experience difficulties accessing reliable agricultural market information.
 
@@ -47,7 +49,7 @@ These challenges include:
 
 FarmDtech addresses these challenges through an integrated agricultural intelligence and decision-support platform.
 
-🚀 Core Features
+## 🚀 Core Features
 
 1. Crop Price Intelligence
 
@@ -111,44 +113,50 @@ The workflow is designed for weekly reporting. Continuous scheduled execution re
 
 Automatic ingestion of newly published prices and model retraining are separate development improvements.
 
-🏗️ Technology Stack
+## 🏗️ Technology Stack
 
-Component	Technology
-Frontend	React, TypeScript, Vite, Tailwind CSS
-Backend	Python, FastAPI
-Machine Learning	XGBoost
-AI Chatbot	Google Gemini
-Database	Supabase / PostgreSQL
-Automation	n8n
-Frontend Deployment	Vercel
-Backend Deployment	Render
-Version Control	Git and GitHub
+| Component | Technology |
+| --- | --- |
+| Frontend | React, TypeScript, Vite, Tailwind CSS |
+| Python Applications | Streamlit dashboard; FastAPI REST API |
+| Backend Hosting | Render (FastAPI) |
+| Machine Learning | XGBoost |
+| AI Chatbot | Google Gemini |
+| Database | Supabase / PostgreSQL |
+| Automation | n8n |
+| Frontend Deployment | Vercel |
+| Streamlit Runtime | Local Python application (not claimed as cloud-deployed) |
+| Version Control | Git and GitHub |
 
-⚙️ System Architecture
+## ⚙️ System Architecture
 
-                  FARMER / USER
-                        |
-                        v
-             FARMDTECH WEB APPLICATION
-             React + TypeScript + Vite
-                        |
-                        v
-                  FASTAPI BACKEND
-                        |
-           +------------+-------------+
-           |            |             |
-           v            v             v
-      Supabase       XGBoost       Gemini AI
-      Database       Forecasts      Chatbot
-           |
-           v
-      Data Services
-      n8n Automation
-           |
-           v
-      Gmail Forecast Reports
+FarmDtech has two application interfaces:
 
-📊 Dataset and Model Evaluation
+1. **React + TypeScript frontend (Vercel) → FastAPI backend (Render)**. FastAPI exposes historical crop prices, saved XGBoost next-month forecasts, and a Gemini-powered chat endpoint. The deployed frontend consumes this API.
+2. **Streamlit research dashboard (Python)**. Run locally using `app.py` to explore crop prices, market comparisons, historical forecasting research and related advisory tools. Its Supabase access uses a separately configured private reader with a local CSV fallback.
+
+Shared project resources include historical data processing, forecasting research, Supabase/PostgreSQL data services and optional n8n/Gmail automation. The Streamlit dashboard and the deployed FastAPI service have different configuration requirements; Streamlit is not the Render API server.
+
+**FastAPI endpoints**
+
+| Endpoint | Method | Purpose |
+| --- | --- | --- |
+| `/` | GET | API information |
+| `/health` | GET | Health check |
+| `/prices` | GET | Historical prices from Supabase |
+| `/forecast` | GET | Saved next-month model forecasts |
+| `/chat` | POST | Gemini agricultural assistant |
+| `/docs` | GET | Interactive API documentation |
+
+**Render start command**
+
+```bash
+uvicorn api:app --host 0.0.0.0 --port $PORT
+```
+
+Render environment variables include `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `GEMINI_API_KEY`, and optionally `CORS_ORIGINS`. Set these privately in the Render dashboard; never commit real credential values.
+
+## 📊 Dataset and Model Evaluation
 
 The core forecasting research uses the World Bank Real-Time Food Prices dataset for Nigeria.
 
@@ -162,14 +170,15 @@ Forecast Evaluation
 
 A chronological six-month holdout was used to evaluate the XGBoost models against a last-month-price baseline.
 
-Crop	XGBoost WMAPE	Baseline WMAPE
-Beans	7.51%	5.38%
-Maize	6.18%	4.27%
-Rice	5.14%	3.91%
+| Crop | XGBoost WMAPE | Baseline WMAPE |
+| --- | ---: | ---: |
+| Beans | 7.51% | 5.38% |
+| Maize | 6.18% | 4.27% |
+| Rice | 5.14% | 3.91% |
 
 The baseline performed better on the reported holdout. These results are based on historical estimated price series and do not independently establish accuracy against current market quotations.
 
-📁 Repository Structure
+## 📁 Repository Structure
 
 FarmDtech/
 ├── automation/
@@ -190,38 +199,53 @@ FarmDtech/
 ├── requirements.txt
 └── README.md
 
-💻 Local Setup
+## 💻 Local Setup
 
-Requirements
+**Requirements:** Python 3.11 or 3.12, Git and pip.
 
-* Python 3.11 or 3.12
-* Git
-* Python package installer (pip)
-
-Clone the repository:
-
+```bash
 git clone https://github.com/ajeksmarvins/FarmDtech.git
 cd FarmDtech
-
-Create a virtual environment:
-
 python -m venv .venv
+```
 
-Activate the environment on Windows:
+Activate the virtual environment on Windows:
 
+```powershell
 .venv\Scripts\activate
+```
 
 Install dependencies:
 
+```bash
 pip install -r requirements.txt
+```
 
-Run the original Streamlit research application:
+**Option A — Run the Streamlit research dashboard**
 
+```bash
 streamlit run app.py
+```
 
-The React frontend is maintained in the separate FarmDtech-Web repository.
+Streamlit can use local bundled CSV data. For its private Supabase reader, configure `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_READER_EMAIL` and `SUPABASE_READER_PASSWORD` securely as environment variables or local Streamlit secrets. Never commit `.streamlit/secrets.toml`.
 
-🔐 Security
+**Option B — Run the FastAPI backend locally**
+
+```bash
+uvicorn api:app --reload
+```
+
+Open `http://127.0.0.1:8000/docs` for interactive API documentation. The `/prices` and `/chat` endpoints require appropriate private environment variables; the `/forecast` endpoint reads saved forecasts.
+
+**FastAPI production deployment on Render**
+
+```bash
+uvicorn api:app --host 0.0.0.0 --port $PORT
+```
+
+The React frontend is maintained separately at https://github.com/ajeksmarvins/FarmDtech-Web and deployed to Vercel. It connects to the FastAPI service on Render, not to the Streamlit dashboard.
+
+## 🔐 Security
 
 Sensitive credentials are managed through private environment variables and deployment configuration.
 
@@ -229,7 +253,7 @@ API keys, Supabase service-role credentials, OAuth secrets and other sensitive i
 
 Database access should follow appropriate authentication and authorization controls.
 
-📈 Business Value
+## 📈 Business Value
 
 FarmDtech is designed to support:
 
@@ -242,7 +266,7 @@ FarmDtech is designed to support:
 
 These are potential benefits; measured financial savings or increases in farmer income have not yet been established.
 
-🔮 Future Improvements
+## 🔮 Future Improvements
 
 Potential future enhancements include:
 
@@ -255,7 +279,7 @@ Potential future enhancements include:
 * Improved multilingual response evaluation.
 * Cloud-hosted continuous automation.
 
-👥 Project Team — PYCODE
+## 👥 Project Team — PYCODE
 
 1. Joanna Onah
 2. Destiny Yahmin
@@ -266,7 +290,7 @@ Potential future enhancements include:
 
 Programme: ITF-NECA Technical Skills Development Project (TSDP)
 
-📚 Data Attribution
+## 📚 Data Attribution
 
 World Bank — Real-Time Food Prices, Nigeria
 https://microdata.worldbank.org/catalog/4503
@@ -276,7 +300,7 @@ https://fews.net
 
 External data is subject to the relevant provider’s licensing and usage conditions.
 
-⚠️ Disclaimer
+## ⚠️ Disclaimer
 
 FarmDtech is an educational agritech decision-support application.
 
