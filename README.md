@@ -1,204 +1,287 @@
-# 🌱 FarmDtech — Crop Price Intelligence & Advisory
+🌱 FarmDtech — AI-Powered Crop Price Intelligence & Advisory System
 
-**Tagline:** Ask. Receive. Decide.  
-**Team:** PYCODE Team  
-**Category:** Nigerian Agritech AI/Automation capstone  
-**Status:** Working local research MVP; external accounts + live data integration are **not configured**.
+Ask. Receive. Decide.
 
-FarmDtech compares Nigerian maize, rice and bean prices, estimates market-level net proceeds after user-provided transportation assumptions, and forecasts **next-month** model-estimated prices using XGBoost. The dashboard clearly distinguishes observed historical survey records from World Bank-estimated price series.
+Project: FarmDtech
+Team: PYCODE Team
+Programme: ITF-NECA Technical Skills Development Project (TSDP)
+Category: Agritech | Artificial Intelligence | Machine Learning | Automation
+Status: Completed and Deployed Capstone MVP
 
-## Start here (Windows / VS Code)
+⸻
 
-1. Unzip this package. Open the **FarmDtech** folder in VS Code (**File → Open Folder**).
-2. Open **Terminal → New Terminal**.
-3. Install **Python 3.11 or 3.12** and ensure the `python` command works.
-4. Create a virtual environment, install the packages and launch the app:
+📖 Project Overview
 
-```powershell
-python -m venv .venv
-.venv\Scripts\activate
-python -m pip install -r requirements.txt
-streamlit run app.py
-```
+FarmDtech is an AI-powered agricultural intelligence platform developed to help Nigerian farmers, agricultural traders and stakeholders make informed decisions about crop prices and market opportunities.
 
-Open **http://localhost:8501** if the browser does not open automatically. If PowerShell blocks activation, run the following directly instead of activating:
+The system combines machine-learning price forecasting, market comparisons, estimated transportation costs and conversational AI assistance to support agricultural decision-making.
 
-```powershell
-.venv\Scripts\python.exe -m pip install -r requirements.txt
-.venv\Scripts\python.exe -m streamlit run app.py
-```
+FarmDtech focuses on three major staple crops:
 
-The ZIP already includes processed World Bank price data and **pretrained models**, so you don't need Supabase or n8n to use the local app. Downloaded source CSV is included for repeatability.
+* Maize
+* Rice
+* Beans
 
-### To rerun the pipeline yourself
+The platform is accessible through a web application, supported by a Python backend, cloud database and automation workflows.
 
-```powershell
-python scripts/prepare_data.py
-python scripts/train_models.py
-python -m pytest -q
-```
+🌐 Live Project Links
 
-`pytest` needs installation separately: `python -m pip install pytest`. The first command reconstructs `data/processed/prices_long.csv`; the second trains models and produces `data/processed/next_month_forecasts.csv` and `models/metrics.json`.
+Component	Link
+Product Demo	https://farm-dtech-web.vercel.app
+GitHub Repository	https://github.com/ajeksmarvins/FarmDtech
+Backend API Documentation	https://farmdtech.onrender.com/docs
+Frontend Repository	https://github.com/ajeksmarvins/FarmDtech-Web
 
-### Application pages
+🎯 Problem Statement
 
-| Page | Function |
-| --- | --- |
-| Market advisor | Select crop, origin, quantity and cost assumptions; compare net proceeds |
-| Price forecast | View next-month model forecast for chosen market and chronological test scores |
-| Data quality | View observed vs estimated records by crop and available market coverage |
-| How it works | Understand source, algorithm, units, maths and limits |
+Many Nigerian farmers experience difficulties accessing reliable agricultural market information.
 
-## Historical weekly research tab
+These challenges include:
 
-The dashboard includes a separate **Weekly research** tab for historical next-week backtests (FEWS NET observations through 2024, not current quotes). The compact result files must be exported locally and committed to enable the public chart. See [Historical Weekly Dashboard deployment guide](docs/HISTORICAL_WEEKLY_DASHBOARD.md). The full weekly source file remains local by default.
+* Limited access to transparent crop-price information.
+* Dependence on middlemen for market information.
+* Difficulty comparing prices across markets.
+* Uncertainty about future crop prices.
+* Transportation costs that reduce potential profits.
+* Limited access to accessible agricultural advisory services.
 
-## Data source and rights
+FarmDtech addresses these challenges through an integrated agricultural intelligence and decision-support platform.
 
-- **Source:** World Bank, Real-Time Food Prices (RTFP), Nigeria, dataset version **2026-10-05**, [`NGA_RTFP_mkt_2007_2026-10-05.csv`](https://microdata.worldbank.org/catalog/4503/get-microdata).
-- **Citation:** World Bank microdata catalog record: https://microdata.worldbank.org/catalog/4503 . Review dataset license/terms before redistributing or using commercially.
-- **Granularity:** monthly (2007–2026), not daily and not verified live prices.
-- **The data contains modelled closing-price estimates** (`c_*`) and scarce survey observations (`beans`, `maize_fao`, `rice_fao`). The app keeps them separate.
-- `data/raw/` preserves the downloaded original. `data/processed/` is generated by the included pipeline.
-- Basket normalization: `beans`/`c_beans` ÷2.5 kg; `maize_fao`/`c_maize_fao` per 1 kg; `rice_fao`/`c_rice_fao` per 1 kg. The separate `rice` 2.8 kg series is not mixed with this rice series.
-- Raw dataset has 17,612 rows and 74 geographic identifiers including national/zone averages. The cleaned **52,283** records cover 67 physical market identifiers and 15 state labels. The prototype does **not** cover every Nigerian state.
+🚀 Core Features
 
-## Nationwide farmer origins (location upgrade)
+1. Crop Price Intelligence
 
-**All 36 Nigerian states plus FCT/Abuja are selectable as farmer origins** using approximate state/FCT representative coordinates from [Open Admin Data Nigeria](https://openadmindata.org/ng/) (attributed to OCHA COD-AB/INEC). These points approximate the geographic origin when a user has not entered coordinates; they do **not** identify the farmer's exact location or street routes.
+FarmDtech provides historical crop-price information for maize, rice and beans across markets represented in its dataset.
 
-Farmers can optionally enter more precise coordinates. All **selling-market prices** and forecasts remain limited to markets actually present in the World Bank dataset. **Choosing FCT/Abuja does not create FCT crop prices**; the dashboard explicitly reports missing same-state quotes and does not calculate imaginary local gains. The price forecast tab independently selects a priced market, defaulting to the nearest available market reference.
+The system distinguishes historical observations, estimated price series and model-generated forecasts.
 
-The current transport calculation uses straight-line distance, so it is only a rough scenario estimate. When expanding to real users, add road travel time, transport-vehicle capacity and independently verified local observations.
+2. Machine Learning Price Forecasting
 
-## Price recommendation maths
+FarmDtech integrates XGBoost machine-learning models to generate next-month crop-price forecasts.
 
-```text
-Gross revenue    = price_ngn_per_kg × quantity_kg
-Indicative costs = straight_line_distance_km × user_transport_ngn_per_km + fixed_fee_ngn
-Indicative net   = gross revenue - indicative costs
-```
+The models use historical monthly prices, seasonal patterns and market characteristics.
 
-A farmer sets quantities and *estimated* transport rates. Distance is computed by the haversine formula, not a live road map, and the highest estimated net proceeds option is shown. A market with a high price can become unattractive after costs. This is a **teaching and scenario-planning tool**, not a guaranteed buyer quote.
+The forecasting system provides market-level predictions to support agricultural planning.
 
-## ML methodology and honestly reported scores
+Note: Forecasts are estimates, not guaranteed selling prices or verified live market quotations.
 
-The model uses the 3 prior monthly estimated prices, seasonality and market coordinates. A chronological **six-month** holdout is used. Scores are compared against a no-ML last-month-price baseline; XGBoost models are then retrained over the full dataset for future-month inference. See `models/metrics.json`.
+3. Market Comparison and Recommendations
 
-| Crop | XGBoost test WMAPE | Last-month baseline WMAPE | Better method on this holdout |
-|---|---:|---:|---|
-| Beans | 7.51% | **5.38%** | Baseline |
-| Maize | 6.18% | **4.27%** | Baseline |
-| Rice | 5.14% | **3.91%** | Baseline |
+The platform helps users evaluate potential selling markets using estimated crop prices, quantities, transportation distances and costs.
 
-**Do not claim that XGBoost beats the baseline or that the scores prove market-price accuracy.** Holdout targets are already World Bank-estimated series, not independently verified market prices. The app displays the XGBoost demonstration forecast with a warning about this evaluation limitation.
+Market recommendations are based on indicative net proceeds.
 
-### Why doesn't it forecast next week's price?
+Gross Revenue = Price per kg × Quantity
+Estimated Transport Cost =
+Distance × Transport Rate + Fixed Costs
+Estimated Net Proceeds =
+Gross Revenue − Estimated Transport Cost
 
-The official course brief asks for next-week forecasting, but this source is monthly. Predicting a specific week from monthly values would present spurious precision. Before final submission, source sufficiently frequent **weekly observed price records**, define comparable crops, train weekly lag features, and evaluate on strictly held-out observed weekly prices. This MVP uses next-month predictions **explicitly**.
+Distance calculations use approximate geographic coordinates rather than live road-routing information.
 
-## Private Supabase reader for the public dashboard
+4. AI-Powered Agricultural Chatbot
 
-The public Streamlit server can read historical World Bank prices through a **dedicated email/password Supabase Auth reader account**, protected by a UUID-scoped SELECT-only RLS policy. This keeps the underlying Supabase table inaccessible to anonymous API callers. The Streamlit server stores the reader credentials in **Streamlit Secrets**, never in GitHub; a 30-minute cached CSV fallback is retained. The public app still reveals price data to its visitors through its UI. See [private reader setup instructions](docs/SUPABASE_PRIVATE_READER.md) and the opt-in policy `supabase/private_reader_policy.sql`.
+FarmDtech integrates Google Gemini AI to provide conversational agricultural assistance.
 
-## Optional Supabase database
+Users can ask questions about farming, crop-price forecasts and market-related topics.
 
-The local version works entirely from bundled CSV. To connect persistent cloud storage:
+The chatbot provides a natural-language interface to agricultural information and can explain available forecast results.
 
-1. Create a Supabase project (account required).
-2. Paste `supabase/schema.sql` into the SQL Editor.
-3. Set `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` **only in a private server environment**, never in a public repository or browser.
-4. Run `python scripts/sync_supabase.py` to upsert cleaned market-price records.
+5. Multilingual Interface
 
-The bundled dashboard currently reads local CSV after sync; connecting it to Supabase for live reads is a follow-up integration step. Table row-level security is enabled with no public policies.
+The FarmDtech interface provides language options including:
 
-## Optional n8n automation / SMS
+* English
+* Hausa
+* Yoruba
+* Igbo
+* Nigerian Pidgin
 
-Import `automation/n8n_advisory_webhook.json` in n8n. It receives a POST from Streamlit, validates the fields, and acknowledges the request. **It does not actually send SMS.** To make it production-useful:
+Language selection is available in the chatbot interface. Response quality and translation accuracy may vary.
 
-1. Protect the webhook using n8n Header Auth or a trusted proxy with a verified secret (a client-supplied header alone does not authenticate anything).
-2. Activate the workflow and copy its HTTPS production webhook URL to the `N8N_WEBHOOK_URL` environment variable or `.streamlit/secrets.toml`.
-3. For actual SMS, import `automation/n8n_twilio_sms_TEMPLATE.json`, set a Twilio account, HTTP Basic Auth credentials and sender number inside n8n, change the configured app webhook URL to that workflow's endpoint, and restrict public access.
-4. Test to a consenting phone number and inspect provider delivery receipts. A webhook acknowledgement or provider acceptance **does not establish SMS delivery**.
+6. Automation and Reporting
 
-Never expose service keys or webhook credentials in GitHub. Treat phone numbers as personal data and request informed opt-in before sending notices.
+FarmDtech uses n8n for workflow automation.
 
-## Adding another data source
+A multi-crop forecast email workflow has been configured and successfully tested using Gmail.
 
-To add a manual field survey or third-party CSV, supply:
+The report includes forecasts for maize, rice and beans and summarizes selected markets.
 
-```text
-date,crop,market,state,latitude,longitude,price_ngn,unit_kg,source
-2026-09-01,Maize,Example Market,Kaduna,10.5,7.5,47000,100,Survey Team
-```
+The workflow is designed for weekly reporting. Continuous scheduled execution requires an active n8n environment.
 
-Run `python scripts/import_external_prices.py your_prices.csv`. The import goes into `data/processed/external_prices_pending.csv` labelled **unverified**, and is *not* combined with verified or modelled records automatically. Replace the example row with an actual verified report before relying on it.
+Automatic ingestion of newly published prices and model retraining are separate development improvements.
 
-A production integration should automate legal downloads/APIs, source versioning, unit/grade validation and moderation of farmer-supplied prices. The bundled dataset importer is not a live scraper.
+🏗️ Technology Stack
 
-## Project structure
+Component	Technology
+Frontend	React, TypeScript, Vite, Tailwind CSS
+Backend	Python, FastAPI
+Machine Learning	XGBoost
+AI Chatbot	Google Gemini
+Database	Supabase / PostgreSQL
+Automation	n8n
+Frontend Deployment	Vercel
+Backend Deployment	Render
+Version Control	Git and GitHub
 
-```text
+⚙️ System Architecture
+
+                  FARMER / USER
+                        |
+                        v
+             FARMDTECH WEB APPLICATION
+             React + TypeScript + Vite
+                        |
+                        v
+                  FASTAPI BACKEND
+                        |
+           +------------+-------------+
+           |            |             |
+           v            v             v
+      Supabase       XGBoost       Gemini AI
+      Database       Forecasts      Chatbot
+           |
+           v
+      Data Services
+      n8n Automation
+           |
+           v
+      Gmail Forecast Reports
+
+📊 Dataset and Model Evaluation
+
+The core forecasting research uses the World Bank Real-Time Food Prices dataset for Nigeria.
+
+Source: https://microdata.worldbank.org/catalog/4503
+
+The processed dataset contains approximately 52,283 records across 67 physical market identifiers.
+
+The historical research dataset contains both observed and estimated price series.
+
+Forecast Evaluation
+
+A chronological six-month holdout was used to evaluate the XGBoost models against a last-month-price baseline.
+
+Crop	XGBoost WMAPE	Baseline WMAPE
+Beans	7.51%	5.38%
+Maize	6.18%	4.27%
+Rice	5.14%	3.91%
+
+The baseline performed better on the reported holdout. These results are based on historical estimated price series and do not independently establish accuracy against current market quotations.
+
+📁 Repository Structure
+
 FarmDtech/
-├── app.py                         Streamlit user interface
-├── streamlit_app.py              Alternate Streamlit entry
-├── alerts.py                      Optional n8n HTTP handoff
-├── scraper.py                     Source CSV import entrypoint
-├── price_predictor.py             Model training entrypoint
-├── market_advisor.py              Recommendation API wrapper
-├── src/
-│   ├── cleaning.py                Dataset cleaning + unit conversion
-│   ├── forecast.py                XGBoost + chronological evaluation
-│   ├── recommend.py               Net-proceeds market comparison
-│   └── storage.py                 Optional Supabase sync
+├── automation/
+├── data/
+├── docs/
+├── models/
 ├── scripts/
-│   ├── prepare_data.py
-│   ├── train_models.py
-│   ├── sync_supabase.py
-│   └── import_external_prices.py
-├── data/raw/                      Original source CSV
-├── data/processed/                Cleaned dataset + forecasts + profile
-├── models/                        Trained XGBoost + scores
-├── automation/                    Importable n8n JSON exports
-├── supabase/schema.sql            Database tables and RLS
-├── docs/                          Architecture, business case, demo plan, limits
-├── tests/                         Unit tests
-├── .streamlit/config.toml         Visual theme
+├── src/
+├── supabase/
+├── tests/
+├── api.py
+├── app.py
+├── alerts.py
+├── market_advisor.py
+├── price_predictor.py
+├── scraper.py
+├── streamlit_app.py
 ├── requirements.txt
 └── README.md
-```
 
-## Capstone deliverable status (as of this package)
+💻 Local Setup
 
-| Required deliverable | Current status |
-|---|---|
-| Reproducible data processing | ✅ Implemented and tested |
-| XGBoost and evaluation metrics | ✅ Implemented, baseline reported transparently |
-| Streamlit UI | ✅ Source complete; needs your local run/public deployment |
-| Market ranking | ✅ Implemented with geographic cost approximations |
-| Automation export | ✅ n8n JSON demo + Twilio template; integration not activated |
-| Database | ⚙️ SQL schema & optional write script; external account not connected |
-| Architecture | ✅ `docs/architecture.svg` |
-| Business case | ✅ PDF scenario with transparent assumptions |
-| Tests | ✅ Nine unit tests passing in development environment |
-| GitHub repository | ⏳ Team must push this folder to GitHub |
-| Public deployment URL | ⏳ Team must deploy to Streamlit Community Cloud |
-| Seven-minute demo video | ⏳ Team must record |
-| Independent verified weekly prices | ⏳ Not yet sourced |
-| Three overall capstone projects | ⏳ This package is ONLY the agritech project |
+Requirements
 
-## Deployment (Streamlit Community Cloud)
+* Python 3.11 or 3.12
+* Git
+* Python package installer (pip)
 
-1. Push this project to a **private or public** GitHub repository as appropriate for your data license.
-2. Sign into Streamlit Community Cloud, choose **New app**, connect repository, select `app.py` as entrypoint and deploy.
-3. Uploaded files contain a dataset (~24 MB raw); make sure the repository and Streamlit Cloud quotas accommodate it. You can omit `data/raw/` from deployment once processed data is committed if licensing or bandwidth requires.
-4. Add any n8n webhook configuration using **App settings → Secrets**. Keep all service keys private. No secrets are needed to demonstrate the local app.
-5. Verify that the plots, download, comparisons, source disclaimers and forecasts work at the public URL, including on a phone.
+Clone the repository:
 
-## Presentation and teamwork
+git clone https://github.com/ajeksmarvins/FarmDtech.git
+cd FarmDtech
 
-The official rubric asks for a **7-minute video**, an architecture diagram, business case, GitHub URL and a n8n export. See `docs/demo_script.md` and `docs/team_contributions.md`. The presentation lists **seven** people while the course brief specifies **2–4 team members**; request permission before submission. The same brief requires **three independent projects**, not one; this submission provides only FarmDtech.
+Create a virtual environment:
 
-## License and disclaimer
+python -m venv .venv
 
-Educational prototype. Source attribution: World Bank Real-Time Food Prices (RTFP) Nigeria, https://microdata.worldbank.org/catalog/4503 . The World Bank's data usage terms must be observed. No part of the software guarantees actual transaction prices, verified live market coverage, road distance, or profits. No valid API credentials or secrets are bundled.
+Activate the environment on Windows:
+
+.venv\Scripts\activate
+
+Install dependencies:
+
+pip install -r requirements.txt
+
+Run the original Streamlit research application:
+
+streamlit run app.py
+
+The React frontend is maintained in the separate FarmDtech-Web repository.
+
+🔐 Security
+
+Sensitive credentials are managed through private environment variables and deployment configuration.
+
+API keys, Supabase service-role credentials, OAuth secrets and other sensitive information must not be committed to public repositories.
+
+Database access should follow appropriate authentication and authorization controls.
+
+📈 Business Value
+
+FarmDtech is designed to support:
+
+* Improved access to agricultural price intelligence.
+* Better-informed market selection.
+* More transparent crop-price comparisons.
+* Agricultural planning using forecast estimates.
+* Increased accessibility of farming information through conversational AI.
+* Reduced manual effort in preparing forecast reports.
+
+These are potential benefits; measured financial savings or increases in farmer income have not yet been established.
+
+🔮 Future Improvements
+
+Potential future enhancements include:
+
+* Automated ingestion of verified, newly published market-price observations.
+* Weekly forecasting based on sufficiently frequent observed price data.
+* Automated model retraining after validated dataset updates.
+* Expanded market and crop coverage.
+* Road-based transportation estimates.
+* SMS and WhatsApp notifications.
+* Improved multilingual response evaluation.
+* Cloud-hosted continuous automation.
+
+👥 Project Team — PYCODE
+
+1. Joanna Onah
+2. Destiny Yahmin
+3. Marvelous Ajekuko
+4. Habeebah Yusuf
+5. Collins Chukwuka
+6. Matthew Joel
+
+Programme: ITF-NECA Technical Skills Development Project (TSDP)
+
+📚 Data Attribution
+
+World Bank — Real-Time Food Prices, Nigeria
+https://microdata.worldbank.org/catalog/4503
+
+FEWS NET — Historical market-price data research
+https://fews.net
+
+External data is subject to the relevant provider’s licensing and usage conditions.
+
+⚠️ Disclaimer
+
+FarmDtech is an educational agritech decision-support application.
+
+Crop-price forecasts, transportation estimates and AI-generated responses are indicative and should not be treated as guaranteed market prices, confirmed buyer offers or financial outcomes.
+
+⸻
+
+🌱 FarmDtech — Ask. Receive. Decide.
