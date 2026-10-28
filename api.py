@@ -245,7 +245,7 @@ def forecast_context(message: str) -> str:
     }
     lower = message.lower()
     crops = [crop for crop, words in aliases.items()
-             if any(re.search(r"\\b" + re.escape(word) + r"\\b", lower) for word in words)]
+             if any(re.search(r"\b" + re.escape(word) + r"\b", lower) for word in words)]
     if not crops:
         return ("No crop specified in this question. You may discuss farming generally, "
                 "but do not invent specific price or forecast numbers.")
@@ -266,7 +266,7 @@ def forecast_context(message: str) -> str:
                 f'forecast month {row["forecast_month"]}, '
                 f'predicted NGN {row["forecast_ngn_per_kg"]} per kg'
             )
-        return "Saved XGBoost forecast records (historical estimated data; NOT live):\\n" + "\\n".join(rows)
+        return "Saved XGBoost forecast records (historical estimated data; NOT live):\\n" + "\n".join(rows)
     except (OSError, ValueError, KeyError, pd.errors.ParserError):
         return "Saved forecasts could not be loaded. Do not quote price numbers."
 
@@ -318,7 +318,7 @@ def chat(request: ChatRequest):
             raise HTTPException(status_code=502, detail="AI service unavailable. Try again later.")
         payload = response.json()
         parts = payload.get("candidates", [{}])[0].get("content", {}).get("parts", [])
-        answer = "\\n".join(part.get("text", "") for part in parts).strip()
+        answer = "\n".join(part.get("text", "") for part in parts).strip()
         if not answer:
             raise HTTPException(status_code=502, detail="AI returned no answer. Try again.")
         return {"reply": answer, "source": "Gemini with FarmDtech forecast context",
