@@ -161,6 +161,76 @@ def prices(crop: str | None = Query(default=None)):
     }
 
 
+def _price_data():
+    project_url = os.getenv("SUPABASE_URL", "")
+    key = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
+    if not project_url or not key:
+        raise HTTPException(status_code=503, detail="Supabase configuration is missing.")
+    try:
+        return _cached_price_rows(project_url, key)
+    except CloudPriceError as exc:
+        print("Supabase read error:", repr(exc), flush=True)
+        raise HTTPException(status_code=502, detail="Unable to retrieve price data.") from exc
+
+
+@app.get("/prices/page")
+def price_page(
+    crop: str = "all",
+    state: str = "all",
+    search: str = "",
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=12, ge=1, le=100),
+):
+    """Return a small page of historical records and available state filters."""
+    rows = _price_data()
+    states = sorted({str(row["state"]) for row in rows if row.get("state")})
+    term = search.strip().casefold()
+    matching = [
+        row for row in rows
+        if (crop == "all" or str(row["crop"]).casefold() == crop.casefold())
+        and (state == "all" or str(row["state"]) == state)
+        and (not term or term in " ".join(
+            str(row.get(field) or "") for field in ("crop", "market", "state")
+        ).casefold())
+    ]
+    matching.sort(key=lambda row: row["date"], reverse=True)
+    start = (page - 1) * page_size
+    return {"count": len(matching), "page": page, "page_size": page_size,
+            "states": states, "prices": matching[start:start + page_size]}
+
+
+@app.get("/prices/summary")
+def price_summary(crop: str = "all"):
+    """Small dashboard payload; aggregate over all historical records."""
+    rows = _price_data()
+    selected = [row for row in rows if crop == "all" or str(row["crop"]).casefold() == crop.casefold()]
+    prices = [float(row["price_ngn_per_kg"]) for row in selected]
+    recent = sorted(selected, key=lambda row: row["date"])[-30:]
+    return {
+        "count": len(selected),
+        "average": sum(prices) / len(prices) if prices else 0,
+        "markets": len({str(row["market"]) for row in selected}),
+        "observed": sum(str(row["price_kind"]).casefold() == "observed" for row in selected),
+        "chart": [{"date": row["date"], "price": row["price_ngn_per_kg"]} for row in recent],
+    }
+
+
+@app.get("/prices/trends")
+def price_trends(crop: str = "all"):
+    """Return daily averages, not every underlying market-price record."""
+    grouped = {}
+    for row in _price_data():
+        if crop != "all" and str(row["crop"]).casefold() != crop.casefold():
+            continue
+        date = str(row["date"])[:10]
+        total, count = grouped.get(date, (0.0, 0))
+        grouped[date] = (total + float(row["price_ngn_per_kg"]), count + 1)
+    return {"chart": [
+        {"date": date, "price": round(total / count)}
+        for date, (total, count) in sorted(grouped.items())[-60:]
+    ]}
+
+
 @app.get("/forecast")
 def get_forecast(
     crop: str | None = Query(default=None),
