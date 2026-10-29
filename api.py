@@ -367,7 +367,34 @@ def chat(request: ChatRequest):
         raise HTTPException(status_code=503, detail="AI assistant is not configured yet.")
     allowed_languages = {"auto", "en-NG", "ha-NG", "yo-NG", "ig-NG", "pcm-NG"}
     language = request.language if request.language in allowed_languages else "auto"
-    context = forecast_context(request.message)
+    lower_question = request.message.casefold()
+    wants_current = any(term in lower_question for term in (
+        "current", "today", "latest", "now", "this week",
+        "market price", "price of", "how much", "selling price",
+    ))
+    if wants_current:
+        from src.live_prices import PriceSourceError, fetch_prices
+        try:
+            published = fetch_prices()
+            aliases = {"maize": ("maize", "corn", "masara", "agbado"),
+                       "rice": ("rice", "shinkafa", "iresi"),
+                       "beans": ("beans", "bean", "cowpea", "wake", "ewa")}
+            matched = [r for r in published if any(
+                re.search(r"\\b" + re.escape(a) + r"\\b", lower_question)
+                for a in aliases.get(r["crop"], ()))]
+            context = ("DATED NATIONAL INDICATIVE REFERENCE PRICES; NOT NAMED-MARKET QUOTES.\\n" +
+                       "\\n".join(
+                           f'{r["commodity_label"]}: NGN {r["price_ngn_per_kg"]}/kg; '
+                           f'observed {r["observed_date"]}; source {r["underlying_source"]}; '
+                           f'publisher {r["publisher"]}; URL {r["source_url"]}; '
+                           f'recent={r["is_recent"]}; named market and state unavailable.'
+                           for r in matched)) if matched else (
+                               "No matching published observation. Do not invent a price.")
+        except (PriceSourceError, requests.RequestException):
+            context = ("Published price source unavailable. Never substitute "
+                       "a forecast for a current market quote.")
+    else:
+        context = forecast_context(request.message)
     language_rules = {
         "en-NG": "Reply exclusively in clear standard English. Do not use Nigerian Pidgin, slang, or code-switching unless quoting or explaining a term the user explicitly asked about.",
         "ha-NG": "Reply in Hausa. Do not mix English or Pidgin into ordinary sentences. Preserve proper nouns, market names and technical names where necessary.",
@@ -387,6 +414,10 @@ def chat(request: ChatRequest):
         "a verified schedule; never invent a date. "
         "Be practical, concise and clear. "
         "Never claim live prices, verified buyer offers or guaranteed profits. "
+        "For current-price questions use ONLY the dated published observations below. "
+        "Always disclose national scope, observation date, source and unit. "
+        "Never imply a named local market or verified buyer offer. "
+        "Do not substitute XGBoost forecasts for current prices. "
         "Only quote specific FarmDtech forecast numbers when supplied in the "
         "forecast context below. State they are XGBoost estimates based on historical "
         "estimated data, not live prices. If no records are provided, explain the limitation. "
@@ -418,7 +449,7 @@ def chat(request: ChatRequest):
         answer = "\n".join(part.get("text", "") for part in parts).strip()
         if not answer:
             raise HTTPException(status_code=502, detail="AI returned no answer. Try again.")
-        return {"reply": answer, "source": "Gemini with FarmDtech forecast context",
+        return {"reply": answer, "source": ("Gemini with published price context" if wants_current else "Gemini with FarmDtech forecast context"),
                 "is_live_market_data": False}
     except requests.RequestException as exc:
         print("Gemini request failure:", type(exc).__name__, flush=True)
