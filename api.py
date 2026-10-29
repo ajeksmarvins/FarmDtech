@@ -8,6 +8,8 @@ for the FarmDtech frontend.
 import os
 import re
 import requests
+import time
+from threading import Lock
 from pathlib import Path
 
 import pandas as pd
@@ -83,6 +85,38 @@ def health():
     return {"status": "ok"}
 
 
+# Cache complete historical price records for five minutes per API process.
+# The lock prevents simultaneous cold requests from repeatedly fetching Supabase.
+PRICE_CACHE_TTL_SECONDS = 300
+_price_cache_lock = Lock()
+_price_cache_rows = None
+_price_cache_expires_at = 0.0
+
+
+def _cached_price_rows(project_url: str, service_role_key: str):
+    global _price_cache_rows, _price_cache_expires_at
+
+    with _price_cache_lock:
+        if _price_cache_rows is not None and time.monotonic() < _price_cache_expires_at:
+            return _price_cache_rows
+
+        started = time.monotonic()
+        # Only publish the cache after the entire fetch and validation succeeds.
+        df = fetch_readonly_prices(project_url, service_role_key)
+        df = df.copy()
+        df["date"] = pd.to_datetime(df["date"]).dt.strftime("%Y-%m-%d")
+        df = df.astype(object).where(pd.notna(df), None)
+        rows = df.to_dict(orient="records")
+        _price_cache_rows = rows
+        _price_cache_expires_at = time.monotonic() + PRICE_CACHE_TTL_SECONDS
+        print(
+            f"Price cache refreshed: {len(rows)} records in "
+            f"{time.monotonic() - started:.2f}s",
+            flush=True,
+        )
+        return rows
+
+
 @app.get("/prices")
 def prices(crop: str | None = Query(default=None)):
     """Return historical prices from Supabase."""
@@ -102,43 +136,28 @@ def prices(crop: str | None = Query(default=None)):
         )
 
     try:
-        df = fetch_readonly_prices(
-            project_url,
-            service_role_key,
-        )
-
+        rows = _cached_price_rows(project_url, service_role_key)
     except CloudPriceError as exc:
-        print(
-            "Supabase read error:",
-            repr(exc),
-            flush=True,
-        )
+        print("Supabase read error:", repr(exc), flush=True)
         raise HTTPException(
             status_code=502,
             detail="Unable to retrieve price data.",
         ) from exc
 
+    # Keep the cache unfiltered so crop-specific requests share one fetch.
     if crop:
-        df = df[
-            df["crop"].astype(str).str.casefold()
-            == crop.casefold()
+        selected = [
+            row for row in rows
+            if str(row["crop"]).casefold() == crop.casefold()
         ]
-
-    df = df.copy()
-
-    df["date"] = pd.to_datetime(
-        df["date"]
-    ).dt.strftime("%Y-%m-%d")
-
-    df = df.astype(object).where(
-        pd.notna(df), None
-    )
+    else:
+        selected = rows
 
     return {
-        "count": len(df),
+        "count": len(selected),
         "source": "Supabase historical price data",
         "is_live_market_data": False,
-        "prices": df.to_dict(orient="records"),
+        "prices": selected,
     }
 
 
