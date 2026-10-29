@@ -423,3 +423,25 @@ def chat(request: ChatRequest):
     except requests.RequestException as exc:
         print("Gemini request failure:", type(exc).__name__, flush=True)
         raise HTTPException(status_code=502, detail="AI service connection failed.") from exc
+
+
+@app.get("/prices/published")
+def published_prices(crop: str | None = Query(default=None)):
+    """Fetch dated national reference prices, never silently substitute forecasts."""
+    from src.live_prices import PriceSourceError, fetch_prices
+
+    try:
+        records = fetch_prices()
+    except (PriceSourceError, requests.RequestException) as exc:
+        print("Published price source unavailable:", type(exc).__name__, flush=True)
+        raise HTTPException(status_code=502, detail="Published price source is unavailable.") from exc
+    if crop:
+        records = [r for r in records if r["crop"].casefold() == crop.casefold()]
+    return {
+        "source": "ROL Global published commodity price table",
+        "scope": "National indicative reference; no named market or state",
+        "is_live_market_data": False,
+        "is_forecast": False,
+        "count": len(records),
+        "prices": records,
+    }
