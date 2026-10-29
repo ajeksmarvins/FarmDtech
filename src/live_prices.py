@@ -13,7 +13,7 @@ import requests
 from bs4 import BeautifulSoup
 
 SOURCE_URL = "https://www.rolglobaltrade.com/commodity-prices.php"
-SUPPORTED = {"maize": "maize", "rice paddy": "rice", "rice": "rice", "beans": "beans"}
+SUPPORTED = {"maize": "maize", "rice paddy": "rice", "rice": "rice", "beans": "beans", "soya bean": "soya bean", "sorghum": "sorghum", "millet": "millet"}
 MAX_AGE_DAYS = 14
 CACHE_TTL_SECONDS = 900
 _cache_lock = Lock()
@@ -47,7 +47,8 @@ def parse_prices(html: str, *, checked_at: datetime | None = None) -> list[dict]
             continue
         def idx(term):
             return next((i for i, h in enumerate(headers) if term in h), None)
-        commodity_i, date_i, source_i = idx("commodity"), idx("source date"), idx("source")
+        commodity_i, date_i = idx("commodity"), idx("source date")
+        source_i = next((i for i, h in enumerate(headers) if h == "source"), None)
         price_i = next((i for i, h in enumerate(headers) if "price / mt" in h or "price/mt" in h), None)
         if price_i is None:
             continue
