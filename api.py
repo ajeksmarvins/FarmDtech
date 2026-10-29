@@ -59,7 +59,10 @@ allowed_origins = [
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
-    allow_origin_regex=r"https://[a-zA-Z0-9-]+\.local-credentialless\.webcontainer-api\.io",
+    allow_origin_regex=(
+        r"https://farm-dtech(?:-web-git)?-[a-z0-9-]+-ajeksmarvins-1082s-projects\\.vercel\\.app"
+        r"|https://[a-zA-Z0-9-]+\\.local-credentialless\\.webcontainer-api\\.io"
+    ),
     allow_credentials=False,
     allow_methods=["GET", "POST"],
     allow_headers=["*"],
