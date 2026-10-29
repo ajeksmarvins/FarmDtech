@@ -5,6 +5,8 @@ No missing prices, locations or observation dates are invented.
 """
 from datetime import date, datetime, timezone
 from decimal import Decimal, InvalidOperation
+from threading import Lock
+import time
 import re
 
 import requests
@@ -13,6 +15,10 @@ from bs4 import BeautifulSoup
 SOURCE_URL = "https://www.rolglobaltrade.com/commodity-prices.php"
 SUPPORTED = {"maize": "maize", "rice paddy": "rice", "rice": "rice", "beans": "beans"}
 MAX_AGE_DAYS = 14
+CACHE_TTL_SECONDS = 900
+_cache_lock = Lock()
+_cache_records = None
+_cache_expiry = 0.0
 
 
 class PriceSourceError(RuntimeError):
@@ -86,13 +92,21 @@ def parse_prices(html: str, *, checked_at: datetime | None = None) -> list[dict]
 
 
 def fetch_prices(timeout: int = 12) -> list[dict]:
-    response = requests.get(
-        SOURCE_URL,
-        timeout=timeout,
-        headers={"User-Agent": "FarmDtechResearch/1.0 (educational price attribution)"},
-    )
-    try:
-        response.raise_for_status()
-    except requests.HTTPError as exc:
-        raise PriceSourceError("Publisher returned an HTTP error.") from exc
-    return parse_prices(response.text)
+    """Cache successful fetches for 15 minutes; never cache a failure."""
+    global _cache_records, _cache_expiry
+    with _cache_lock:
+        if _cache_records is not None and time.monotonic() < _cache_expiry:
+            return [dict(record) for record in _cache_records]
+        try:
+            response = requests.get(
+                SOURCE_URL,
+                timeout=timeout,
+                headers={"User-Agent": "FarmDtechResearch/1.0 (educational price attribution)"},
+            )
+            response.raise_for_status()
+        except requests.RequestException as exc:
+            raise PriceSourceError("Publisher unavailable.") from exc
+        records = parse_prices(response.text)
+        _cache_records = records
+        _cache_expiry = time.monotonic() + CACHE_TTL_SECONDS
+        return [dict(record) for record in records]
