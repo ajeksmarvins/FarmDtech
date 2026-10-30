@@ -19,6 +19,22 @@ class PublishedPriceParserTests(unittest.TestCase):
         self.assertEqual(rows[1]["commodity_label"], "Rice Paddy")
         self.assertFalse(rows[0]["is_named_market_quote"])
         self.assertTrue(rows[0]["is_recent"])
+        self.assertEqual(rows[0]["underlying_source"], "Commodity Nigeria")
+        self.assertEqual(rows[0]["observed_date"], "2026-10-29")
+
+    def test_actual_publisher_column_order(self):
+        html = """<table><tr><th>Commodity</th><th>Price / MT</th><th>Approx. / KG</th>
+        <th>Approx. / 50KG</th><th>Approx. / 100KG</th><th>Movement</th>
+        <th>Source</th><th>Source Date</th></tr>
+        <tr><td>Soya Bean</td><td>₦800,000</td><td>₦800</td><td>₦40,000</td>
+        <td>₦80,000</td><td>— Unchanged</td><td>Commodity Nigeria</td>
+        <td>29 Oct 2026</td></tr></table>"""
+        rows = parse_prices(html, checked_at=datetime(2026, 10, 30, tzinfo=timezone.utc))
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["crop"], "soya bean")
+        self.assertEqual(rows[0]["price_ngn_per_kg"], 800)
+        self.assertEqual(rows[0]["underlying_source"], "Commodity Nigeria")
+        self.assertEqual(rows[0]["observed_date"], "2026-10-29")
 
     def test_no_valid_rows_fails_closed(self):
         with self.assertRaises(PriceSourceError):
