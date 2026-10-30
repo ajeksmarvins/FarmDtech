@@ -381,9 +381,12 @@ def chat(request: ChatRequest):
             published = fetch_prices()
             aliases = {"maize": ("maize", "corn", "masara", "agbado"),
                        "rice": ("rice", "shinkafa", "iresi"),
-                       "beans": ("beans", "bean", "cowpea", "wake", "ewa")}
+                       "beans": ("beans", "bean", "cowpea", "wake", "ewa"),
+                       "soya bean": ("soya bean", "soybean", "soybeans", "soya", "soy"),
+                       "sorghum": ("sorghum", "guinea corn"),
+                       "millet": ("millet",)}
             matched = [r for r in published if any(
-                re.search(r"\\b" + re.escape(a) + r"\\b", lower_question)
+                re.search(r"\b" + re.escape(a) + r"\b", lower_question)
                 for a in aliases.get(r["crop"], ()))]
             context = ("DATED NATIONAL INDICATIVE REFERENCE PRICES; NOT NAMED-MARKET QUOTES.\\n" +
                        "\\n".join(
