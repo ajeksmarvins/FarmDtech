@@ -395,7 +395,7 @@ def local_price_context(request: ChatRequest) -> str:
         "millet": ("millet",),
     }
     crops = [crop for crop, names in crop_aliases.items()
-             if any(re.search(r"\\b" + re.escape(name) + r"\\b", conversation)
+             if any(re.search(r"\b" + re.escape(name) + r"\b", conversation)
                     for name in names)]
     if not crops:
         return "No crop identified yet. Ask the farmer which crop they mean."
@@ -405,7 +405,7 @@ def local_price_context(request: ChatRequest) -> str:
         return "Historical market records are unavailable; do not invent local prices."
     states = sorted({str(r["state"]) for r in rows if r.get("state")}, key=len, reverse=True)
     state = next((s for s in states if re.search(
-        r"(?<!\\w)" + re.escape(s.casefold()) + r"(?!\\w)", conversation)), None)
+        r"(?<!\w)" + re.escape(s.casefold()) + r"(?!\w)", conversation)), None)
     if not state:
         return ("Crop identified: " + ", ".join(crops) +
                 ". Ask which state or market the farmer wants; do not assume their location.")
@@ -413,7 +413,7 @@ def local_price_context(request: ChatRequest) -> str:
                   and str(r.get("crop", "")).casefold() in crops]
     markets = sorted({str(r["market"]) for r in candidates if r.get("market")}, key=len, reverse=True)
     market = next((m for m in markets if re.search(
-        r"(?<!\\w)" + re.escape(m.casefold()) + r"(?!\\w)", conversation)), None)
+        r"(?<!\w)" + re.escape(m.casefold()) + r"(?!\w)", conversation)), None)
     if not market:
         # If the farmer named a market that is absent, do not claim a match.
         # Ask them to select an available market before presenting a local quote.
@@ -435,7 +435,7 @@ def local_price_context(request: ChatRequest) -> str:
     return ("HISTORICAL MARKET DATA ONLY; NOT VERIFIED CURRENT QUOTES. "
             + ("Matching named market. " if market else
                "State identified; ask for a specific market if useful. ")
-            + "Latest available matching records:\\n" + "\\n".join(lines))
+            + "Latest available matching records:\n" + "\n".join(lines))
 
 
 @app.post("/chat")
