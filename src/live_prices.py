@@ -13,7 +13,7 @@ import requests
 from bs4 import BeautifulSoup
 
 SOURCE_URL = "https://www.rolglobaltrade.com/commodity-prices.php"
-SUPPORTED = {"maize": "maize", "rice paddy": "rice", "rice": "rice", "beans": "beans", "soya bean": "soya bean", "sorghum": "sorghum", "millet": "millet"}
+SUPPORTED = {"maize": "maize", "rice paddy": "rice", "rice": "rice", "beans": "beans", "soya bean": "soya bean", "sorghum": "sorghum", "millet": "millet", "cocoa beans": "cocoa", "sesame": "sesame", "sesame seeds": "sesame", "groundnut": "groundnut", "ginger": "ginger", "cashew nuts": "cashew", "wheat": "wheat"}
 MAX_AGE_DAYS = 14
 CACHE_TTL_SECONDS = 900
 _cache_lock = Lock()
