@@ -382,6 +382,56 @@ def forecast_context(message: str) -> str:
         return "Saved forecasts could not be loaded. Do not quote price numbers."
 
 
+def local_price_context(request: ChatRequest) -> str:
+    """Match conversational crop/location details to labelled historical records."""
+    user_messages = [m.content for m in request.history[-10:] if m.role == "user"]
+    conversation = " ".join(user_messages + [request.message]).casefold()
+    crop_aliases = {
+        "maize": ("maize", "corn", "masara", "agbado"),
+        "rice": ("rice", "shinkafa", "iresi"),
+        "beans": ("beans", "bean", "cowpea", "wake", "ewa"),
+        "soya bean": ("soya bean", "soybean", "soya"),
+        "sorghum": ("sorghum", "guinea corn"),
+        "millet": ("millet",),
+    }
+    crops = [crop for crop, names in crop_aliases.items()
+             if any(re.search(r"\\b" + re.escape(name) + r"\\b", conversation)
+                    for name in names)]
+    if not crops:
+        return "No crop identified yet. Ask the farmer which crop they mean."
+    try:
+        rows = _price_data()
+    except HTTPException:
+        return "Historical market records are unavailable; do not invent local prices."
+    states = sorted({str(r["state"]) for r in rows if r.get("state")}, key=len, reverse=True)
+    state = next((s for s in states if re.search(
+        r"(?<!\\w)" + re.escape(s.casefold()) + r"(?!\\w)", conversation)), None)
+    if not state:
+        return ("Crop identified: " + ", ".join(crops) +
+                ". Ask which state or market the farmer wants; do not assume their location.")
+    candidates = [r for r in rows if str(r.get("state", "")).casefold() == state.casefold()
+                  and str(r.get("crop", "")).casefold() in crops]
+    markets = sorted({str(r["market"]) for r in candidates if r.get("market")}, key=len, reverse=True)
+    market = next((m for m in markets if re.search(
+        r"(?<!\\w)" + re.escape(m.casefold()) + r"(?!\\w)", conversation)), None)
+    if market:
+        candidates = [r for r in candidates if str(r.get("market", "")).casefold() == market.casefold()]
+    if not candidates:
+        return f"No matching historical records for {', '.join(crops)} in {state}. Do not invent figures."
+    candidates.sort(key=lambda r: str(r["date"]), reverse=True)
+    latest = candidates[0]["date"]
+    recent = [r for r in candidates if r["date"] == latest][:8]
+    lines = [
+        f'{r["crop"]}, {r["market"]}, {r["state"]}: NGN {r["price_ngn_per_kg"]}/kg; '
+        f'date {r["date"]}; record type {r["price_kind"]}'
+        for r in recent
+    ]
+    return ("HISTORICAL MARKET DATA ONLY; NOT VERIFIED CURRENT QUOTES. "
+            + ("Matching named market. " if market else
+               "State identified; ask for a specific market if useful. ")
+            + "Latest available matching records:\\n" + "\\n".join(lines))
+
+
 @app.post("/chat")
 def chat(request: ChatRequest):
     key = os.getenv("GEMINI_API_KEY", "").strip()
@@ -390,7 +440,18 @@ def chat(request: ChatRequest):
     allowed_languages = {"auto", "en-NG", "ha-NG", "yo-NG", "ig-NG", "pcm-NG"}
     language = request.language if request.language in allowed_languages else "auto"
     lower_question = request.message.casefold()
-    wants_current = any(term in lower_question for term in (
+    conversation_question = " ".join(
+        [m.content for m in request.history[-10:] if m.role == "user"]
+        + [request.message]
+    ).casefold()
+    # Short follow-ups such as "Borno State" or "Monday Market" retain
+    # the preceding crop-price intent without treating all chats as prices.
+    previous_price_question = any(
+        term in conversation_question for term in (
+            "price", "how much", "selling for", "cost of", "market rate",
+        )
+    )
+    wants_current = previous_price_question or any(term in lower_question for term in (
         "current", "today", "latest", "now", "this week",
         "market price", "price of", "how much", "selling price",
         "cost of", "price for", "price per", "selling for",
@@ -417,8 +478,9 @@ def chat(request: ChatRequest):
                            for r in matched)) if matched else (
                                "No matching published observation. Do not invent a price.")
         except (PriceSourceError, requests.RequestException):
-            context = ("Published price source unavailable. Never substitute "
-                       "a forecast for a current market quote.")
+            context = ("Published national reference price source unavailable. "
+                       "Never substitute a forecast for a current market quote.")
+        context += "\\n\\n" + local_price_context(request)
     elif any(term in lower_question for term in (
         "forecast", "predict", "prediction", "next month", "next week",
         "price trend", "price outlook",
@@ -451,7 +513,12 @@ def chat(request: ChatRequest):
         "a verified schedule; never invent a date. "
         "Be practical, concise and clear. "
         "Never claim live prices, verified buyer offers or guaranteed profits. "
-        "For current-price questions use ONLY the dated published observations below. "
+        "For current-price questions, published observations are NATIONAL references only. "
+        "If the farmer has not specified a state or market, ask a brief follow-up instead "
+        "of assuming their location. Remember crop and location from user history. "
+        "For a named market, use only the supplied historical records, label their dates "
+        "and observed/estimated types, and never present them as live quotes. "
+        "If both national reference and historical records exist, clearly distinguish them. "
         "For general agricultural questions, answer directly from your knowledge; "
         "do not require price datasets or forecasts. "
         "Always disclose national scope, observation date, source and unit. "
