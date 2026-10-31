@@ -414,8 +414,14 @@ def local_price_context(request: ChatRequest) -> str:
     markets = sorted({str(r["market"]) for r in candidates if r.get("market")}, key=len, reverse=True)
     market = next((m for m in markets if re.search(
         r"(?<!\\w)" + re.escape(m.casefold()) + r"(?!\\w)", conversation)), None)
-    if market:
-        candidates = [r for r in candidates if str(r.get("market", "")).casefold() == market.casefold()]
+    if not market:
+        # If the farmer named a market that is absent, do not claim a match.
+        # Ask them to select an available market before presenting a local quote.
+        return (f"State {state} identified for {', '.join(crops)}. "
+                "Ask which market they mean. Available markets: "
+                + ", ".join(sorted(markets)[:12])
+                + ". These are historical records, not live quotes.")
+    candidates = [r for r in candidates if str(r.get("market", "")).casefold() == market.casefold()]
     if not candidates:
         return f"No matching historical records for {', '.join(crops)} in {state}. Do not invent figures."
     candidates.sort(key=lambda r: str(r["date"]), reverse=True)
@@ -451,7 +457,15 @@ def chat(request: ChatRequest):
             "price", "how much", "selling for", "cost of", "market rate",
         )
     )
-    wants_current = previous_price_question or any(term in lower_question for term in (
+    # A new standalone farming question should not inherit a prior price intent.
+    general_question = any(
+        term in lower_question for term in (
+            "how to grow", "how do i grow", "how to cultivate",
+            "how do i cultivate", "what is", "explain", "pest",
+            "disease", "fertilizer", "fertiliser", "soil",
+        )
+    )
+    wants_current = (previous_price_question and not general_question) or any(term in lower_question for term in (
         "current", "today", "latest", "now", "this week",
         "market price", "price of", "how much", "selling price",
         "cost of", "price for", "price per", "selling for",
