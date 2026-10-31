@@ -9,7 +9,7 @@ import os
 import re
 import requests
 import time
-from threading import Lock
+from threading import Lock, Thread
 from pathlib import Path
 
 import pandas as pd
@@ -88,9 +88,9 @@ def health():
     return {"status": "ok"}
 
 
-# Cache complete historical price records for five minutes per API process.
-# The lock prevents simultaneous cold requests from repeatedly fetching Supabase.
-PRICE_CACHE_TTL_SECONDS = 300
+# Historical records change infrequently; avoid re-fetching 50+ Supabase pages
+# every five minutes. A new deployment still starts with an empty cache.
+PRICE_CACHE_TTL_SECONDS = 1800
 _price_cache_lock = Lock()
 _price_cache_rows = None
 _price_cache_expires_at = 0.0
@@ -118,6 +118,25 @@ def _cached_price_rows(project_url: str, service_role_key: str):
             flush=True,
         )
         return rows
+
+
+def _warm_price_cache():
+    """Populate the historical cache after startup without blocking /health."""
+    project_url = os.getenv("SUPABASE_URL", "")
+    key = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
+    if not project_url or not key:
+        return
+    try:
+        _cached_price_rows(project_url, key)
+    except (CloudPriceError, ValueError, requests.RequestException) as exc:
+        # A failed warm-up must not prevent the API from starting. A later
+        # price request can retry using the existing error handling.
+        print(f"Price cache warm-up failed: {type(exc).__name__}", flush=True)
+
+
+@app.on_event("startup")
+def start_price_cache_warmup():
+    Thread(target=_warm_price_cache, daemon=True, name="price-cache-warmup").start()
 
 
 @app.get("/prices")
