@@ -399,16 +399,26 @@ def local_price_context(request: ChatRequest) -> str:
                     for name in names)]
     if not crops:
         return "No crop identified yet. Ask the farmer which crop they mean."
+    # Avoid downloading the entire historical dataset just to ask for a state.
+    known_states = (
+        "Abia", "Adamawa", "Akwa Ibom", "Anambra", "Bauchi", "Bayelsa",
+        "Benue", "Borno", "Cross River", "Delta", "Ebonyi", "Edo",
+        "Ekiti", "Enugu", "Gombe", "Imo", "Jigawa", "Kaduna", "Kano",
+        "Katsina", "Kebbi", "Kogi", "Kwara", "Lagos", "Nasarawa",
+        "Niger", "Ogun", "Ondo", "Osun", "Oyo", "Plateau", "Rivers",
+        "Sokoto", "Taraba", "Yobe", "Zamfara", "FCT", "Abuja",
+    )
+    state = next((s for s in known_states if re.search(
+        r"(?<!\w)" + re.escape(s.casefold()) + r"(?!\w)", conversation)), None)
+    if not state:
+        return ("Crop identified: " + ", ".join(crops) +
+                ". Ask which state the farmer wants; do not assume their location.")
     try:
         rows = _price_data()
     except HTTPException:
         return "Historical market records are unavailable; do not invent local prices."
-    states = sorted({str(r["state"]) for r in rows if r.get("state")}, key=len, reverse=True)
-    state = next((s for s in states if re.search(
-        r"(?<!\w)" + re.escape(s.casefold()) + r"(?!\w)", conversation)), None)
-    if not state:
-        return ("Crop identified: " + ", ".join(crops) +
-                ". Ask which state or market the farmer wants; do not assume their location.")
+    if state == "Abuja":
+        state = "FCT"
     candidates = [r for r in rows if str(r.get("state", "")).casefold() == state.casefold()
                   and str(r.get("crop", "")).casefold() in crops]
     markets = sorted({str(r["market"]) for r in candidates if r.get("market")}, key=len, reverse=True)
