@@ -374,6 +374,7 @@ def chat(request: ChatRequest):
     wants_current = any(term in lower_question for term in (
         "current", "today", "latest", "now", "this week",
         "market price", "price of", "how much", "selling price",
+        "cost of", "price for", "price per", "selling for",
     ))
     if wants_current:
         from src.live_prices import PriceSourceError, fetch_prices
@@ -399,8 +400,19 @@ def chat(request: ChatRequest):
         except (PriceSourceError, requests.RequestException):
             context = ("Published price source unavailable. Never substitute "
                        "a forecast for a current market quote.")
-    else:
+    elif any(term in lower_question for term in (
+        "forecast", "predict", "prediction", "next month", "next week",
+        "price trend", "price outlook",
+    )):
         context = forecast_context(request.message)
+    else:
+        context = (
+            "GENERAL AGRICULTURAL QUESTION. Answer from your existing agricultural "
+            "knowledge. No FarmDtech price or forecast records are supplied or needed. "
+            "Explain concepts, crops, farming practices, pests and diseases naturally. "
+            "Do not claim you searched Google or checked current conditions. "
+            "For uncertain or time-sensitive facts, say verification is needed."
+        )
     language_rules = {
         "en-NG": "Reply exclusively in clear standard English. Do not use Nigerian Pidgin, slang, or code-switching unless quoting or explaining a term the user explicitly asked about.",
         "ha-NG": "Reply in Hausa. Do not mix English or Pidgin into ordinary sentences. Preserve proper nouns, market names and technical names where necessary.",
@@ -421,6 +433,8 @@ def chat(request: ChatRequest):
         "Be practical, concise and clear. "
         "Never claim live prices, verified buyer offers or guaranteed profits. "
         "For current-price questions use ONLY the dated published observations below. "
+        "For general agricultural questions, answer directly from your knowledge; "
+        "do not require price datasets or forecasts. "
         "Always disclose national scope, observation date, source and unit. "
         "Never imply a named local market or verified buyer offer. "
         "Do not substitute XGBoost forecasts for current prices. "
@@ -455,7 +469,7 @@ def chat(request: ChatRequest):
         answer = "\n".join(part.get("text", "") for part in parts).strip()
         if not answer:
             raise HTTPException(status_code=502, detail="AI returned no answer. Try again.")
-        return {"reply": answer, "source": ("Gemini with published price context" if wants_current else "Gemini with FarmDtech forecast context"),
+        return {"reply": answer, "source": ("Gemini with published price context" if wants_current else "Gemini agricultural knowledge and optional forecast context"),
                 "is_live_market_data": False}
     except requests.RequestException as exc:
         print("Gemini request failure:", type(exc).__name__, flush=True)
