@@ -20,6 +20,72 @@ class CloudPriceError(RuntimeError):
     """Failure fetching or validating cloud price data."""
 
 
+
+def fetch_price_page(
+    project_url: str,
+    service_role_key: str,
+    *,
+    crop: str = "all",
+    state: str = "all",
+    search: str = "",
+    page: int = 1,
+    page_size: int = 12,
+    get=None,
+) -> tuple[int, list[dict]]:
+    """Read one page and an exact count without fetching every historical row."""
+    project_url = project_url.strip().rstrip("/")
+    host = urlparse(project_url)
+    if (
+        host.scheme != "https"
+        or host.port is not None
+        or not re.fullmatch(r"[a-z0-9-]+\\.supabase\\.co", host.hostname or "")
+        or host.path or host.query or host.fragment or host.username or host.password
+        or not service_role_key.strip()
+    ):
+        raise CloudPriceError("Invalid Supabase configuration")
+
+    params = {
+        "select": ",".join(COLUMNS),
+        "order": "date.desc,id.desc",
+        "limit": str(page_size),
+        "offset": str((page - 1) * page_size),
+    }
+    if crop != "all":
+        params["crop"] = "eq." + crop
+    if state != "all":
+        params["state"] = "eq." + state
+    term = search.strip()
+    if term:
+        # Restrict PostgREST filter syntax; user input remains ordinary search text.
+        if len(term) > 80 or not re.fullmatch(r"[\\w\\s-]+", term):
+            raise ValueError("Search contains unsupported characters")
+        params["or"] = "(" + ",".join(
+            f"{column}.ilike.*{term}*" for column in ("crop", "market", "state")
+        ) + ")"
+
+    headers = {
+        "apikey": service_role_key,
+        "Authorization": f"Bearer {service_role_key}",
+        "Accept": "application/json",
+        "Prefer": "count=exact",
+    }
+    try:
+        response = (get or requests.get)(
+            project_url + "/rest/v1/prices",
+            params=params, headers=headers, timeout=20,
+        )
+        response.raise_for_status()
+        rows = response.json()
+        content_range = response.headers.get("Content-Range", "")
+        count = int(content_range.rsplit("/", 1)[1])
+    except (requests.RequestException, ValueError, KeyError, IndexError, TypeError) as exc:
+        raise CloudPriceError("Unable to retrieve paginated crop prices") from exc
+    if not isinstance(rows, list) or len(rows) > page_size:
+        raise CloudPriceError("Unexpected paginated crop price response")
+    if any(not isinstance(row, dict) or not set(COLUMNS).issubset(row) for row in rows):
+        raise CloudPriceError("Paginated crop prices are missing required fields")
+    return count, rows
+
 def fetch_readonly_prices(
     project_url: str,
     service_role_key: str,

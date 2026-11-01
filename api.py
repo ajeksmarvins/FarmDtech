@@ -21,6 +21,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from src.cloud_prices import (
     CloudPriceError,
     fetch_readonly_prices,
+    fetch_price_page,
 )
 
 
@@ -204,21 +205,36 @@ def price_page(
     page_size: int = Query(default=12, ge=1, le=100),
 ):
     """Return a small page of historical records and available state filters."""
-    rows = _price_data()
-    states = sorted({str(row["state"]) for row in rows if row.get("state")})
-    term = search.strip().casefold()
-    matching = [
-        row for row in rows
-        if (crop == "all" or str(row["crop"]).casefold() == crop.casefold())
-        and (state == "all" or str(row["state"]) == state)
-        and (not term or term in " ".join(
-            str(row.get(field) or "") for field in ("crop", "market", "state")
-        ).casefold())
-    ]
-    matching.sort(key=lambda row: row["date"], reverse=True)
-    start = (page - 1) * page_size
-    return {"count": len(matching), "page": page, "page_size": page_size,
-            "states": states, "prices": matching[start:start + page_size]}
+    project_url = os.getenv("SUPABASE_URL", "")
+    key = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
+    if not project_url or not key:
+        raise HTTPException(status_code=503, detail="Supabase configuration is missing.")
+    try:
+        count, records = fetch_price_page(
+            project_url, key, crop=crop, state=state, search=search,
+            page=page, page_size=page_size,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except CloudPriceError as exc:
+        print("Supabase paginated read error:", type(exc).__name__, flush=True)
+        raise HTTPException(status_code=502, detail="Unable to retrieve price data.") from exc
+
+    # The full cache is warming independently. Prefer its actual states when ready.
+    # Saved forecasts have the same market/state reference columns and provide a
+    # small startup fallback, without requiring 50+ Supabase fetches.
+    if _price_cache_rows is not None:
+        states = sorted({str(row["state"]) for row in _price_cache_rows if row.get("state")})
+    elif FORECAST_FILE.is_file():
+        try:
+            states = sorted(pd.read_csv(FORECAST_FILE, usecols=["state"])["state"]
+                            .dropna().astype(str).unique().tolist())
+        except (OSError, ValueError, pd.errors.ParserError):
+            states = []
+    else:
+        states = []
+    return {"count": count, "page": page, "page_size": page_size,
+            "states": states, "prices": records}
 
 
 @app.get("/prices/summary")
