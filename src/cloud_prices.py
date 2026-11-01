@@ -38,7 +38,7 @@ def fetch_price_page(
     if (
         host.scheme != "https"
         or host.port is not None
-        or not re.fullmatch(r"[a-z0-9-]+\\.supabase\\.co", host.hostname or "")
+        or not re.fullmatch(r"[a-z0-9-]+\.supabase\.co", host.hostname or "")
         or host.path or host.query or host.fragment or host.username or host.password
         or not service_role_key.strip()
     ):
@@ -57,7 +57,7 @@ def fetch_price_page(
     term = search.strip()
     if term:
         # Restrict PostgREST filter syntax; user input remains ordinary search text.
-        if len(term) > 80 or not re.fullmatch(r"[\\w\\s-]+", term):
+        if len(term) > 80 or not re.fullmatch(r"[\w\s-]+", term):
             raise ValueError("Search contains unsupported characters")
         params["or"] = "(" + ",".join(
             f"{column}.ilike.*{term}*" for column in ("crop", "market", "state")
