@@ -346,7 +346,7 @@ class ChatRequest(BaseModel):
 
 
 def forecast_context(message: str) -> str:
-    """Ground crop price claims in the saved model data, never invented live quotes."""
+    """Find saved predictions for the crop, named market, state and month."""
     if not FORECAST_FILE.is_file():
         return "Saved forecast data unavailable. Do not quote crop prices."
     aliases = {
@@ -354,32 +354,64 @@ def forecast_context(message: str) -> str:
         "rice": ("rice", "shinkafa", "iresi"),
         "beans": ("beans", "bean", "cowpea", "wake", "ewa"),
     }
-    lower = message.lower()
+    lower = message.casefold()
     crops = [crop for crop, words in aliases.items()
              if any(re.search(r"\b" + re.escape(word) + r"\b", lower) for word in words)]
     if not crops:
-        return ("No crop specified in this question. You may discuss farming generally, "
-                "but do not invent specific price or forecast numbers.")
+        return "No crop specified. Ask which crop the farmer means."
     try:
         df = pd.read_csv(FORECAST_FILE)
-        df = df[df["crop"].astype(str).str.lower().isin(crops)]
+        df = df[df["crop"].astype(str).str.casefold().isin(crops)].copy()
         if df.empty:
             return "No saved forecast records for the requested crop."
-        matching_states = [s for s in df["state"].dropna().astype(str).unique()
-                           if s.lower() in lower]
-        if matching_states:
-            df = df[df["state"].isin(matching_states)]
-        df = df.sort_values("forecast_ngn_per_kg", ascending=False).head(8)
+
+        # A named market takes priority over a general state selection.
+        markets = sorted(df["market"].dropna().astype(str).unique(), key=len, reverse=True)
+        matched_market = next((m for m in markets if re.search(
+            r"(?<!\w)" + re.escape(m.casefold()) + r"(?!\w)", lower)), None)
+        if matched_market:
+            df = df[df["market"].astype(str).str.casefold() == matched_market.casefold()]
+        else:
+            states = sorted(df["state"].dropna().astype(str).unique(), key=len, reverse=True)
+            matched_state = next((state for state in states if re.search(
+                r"(?<!\w)" + re.escape(state.casefold()) + r"(?!\w)", lower)), None)
+            if not matched_state and re.search(r"\babuja\b", lower):
+                matched_state = next((state for state in states
+                                      if state.casefold() in ("fct", "abuja")), None)
+            if matched_state:
+                df = df[df["state"].astype(str).str.casefold() == matched_state.casefold()]
+
+        # A requested month/year must match the actual forecast period.
+        month_names = {
+            "january": 1, "february": 2, "march": 3, "april": 4,
+            "may": 5, "june": 6, "july": 7, "august": 8,
+            "september": 9, "october": 10, "november": 11, "december": 12,
+        }
+        requested_month = next((number for name, number in month_names.items()
+                                if re.search(r"\b" + name + r"\b", lower)), None)
+        year_match = re.search(r"\b20\d{2}\b", lower)
+        if requested_month is not None or year_match:
+            dates = pd.to_datetime(df["forecast_month"], errors="coerce")
+            if requested_month is not None:
+                df = df[dates.dt.month == requested_month]
+                dates = dates.loc[df.index]
+            if year_match:
+                df = df[dates.dt.year == int(year_match.group())]
+
+        if df.empty:
+            return ("No saved XGBoost prediction matches the requested crop, "
+                    "market/state and forecast month. Do not substitute a historical "
+                    "price or a national reference as the forecast.")
         rows = []
-        for _, row in df.iterrows():
+        for _, row in df.head(12).iterrows():
             rows.append(
                 f'{row["crop"]}, {row["market"]}, {row["state"]}, '
                 f'forecast month {row["forecast_month"]}, '
                 f'predicted NGN {row["forecast_ngn_per_kg"]} per kg'
             )
-        return "Saved XGBoost forecast records (historical estimated data; NOT live):\\n" + "\n".join(rows)
+        return "Saved XGBoost predictions (estimates, NOT live prices):\n" + "\n".join(rows)
     except (OSError, ValueError, KeyError, pd.errors.ParserError):
-        return "Saved forecasts could not be loaded. Do not quote price numbers."
+        return "Saved forecasts could not be loaded. Do not quote forecast numbers."
 
 
 def local_price_context(request: ChatRequest) -> str:
@@ -480,7 +512,13 @@ def chat(request: ChatRequest):
         "market price", "price of", "how much", "selling price",
         "cost of", "price for", "price per", "selling for",
     ))
-    if wants_current:
+    wants_forecast = any(term in lower_question for term in (
+        "forecast", "predict", "prediction", "predicted", "next month",
+        "next week", "price trend", "price outlook",
+    ))
+    if wants_forecast:
+        context = forecast_context(conversation_question)
+    elif wants_current:
         from src.live_prices import PriceSourceError, fetch_prices
         try:
             published = fetch_prices()
@@ -505,11 +543,6 @@ def chat(request: ChatRequest):
             context = ("Published national reference price source unavailable. "
                        "Never substitute a forecast for a current market quote.")
         context += "\\n\\n" + local_price_context(request)
-    elif any(term in lower_question for term in (
-        "forecast", "predict", "prediction", "next month", "next week",
-        "price trend", "price outlook",
-    )):
-        context = forecast_context(request.message)
     else:
         context = (
             "GENERAL AGRICULTURAL QUESTION. Answer from your existing agricultural "
