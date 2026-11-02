@@ -424,22 +424,27 @@ def local_price_context(request: ChatRequest) -> str:
         "Niger", "Ogun", "Ondo", "Osun", "Oyo", "Plateau", "Rivers",
         "Sokoto", "Taraba", "Yobe", "Zamfara", "FCT", "Abuja",
     )
-    state = next((s for s in known_states if re.search(
-        r"(?<!\w)" + re.escape(s.casefold()) + r"(?!\w)", conversation)), None)
+    # Prioritize locations mentioned in the latest user turn.
+    state = next((name for message in reversed(user_messages + [request.message])
+                  for name in known_states
+                  if re.search(r"(?<!\\w)" + re.escape(name.casefold()) + r"(?!\\w)",
+                               message.casefold())), None)
     if not state:
         return ("Crop identified: " + ", ".join(crops) +
                 ". Ask which state the farmer wants; do not assume their location.")
     try:
         rows = _price_data()
     except HTTPException:
-        return "Historical market records are unavailable; do not invent local prices."
+        return "Historical market records are currently unavailable."
     if state == "Abuja":
         state = "FCT"
     candidates = [r for r in rows if str(r.get("state", "")).casefold() == state.casefold()
                   and str(r.get("crop", "")).casefold() in crops]
     markets = sorted({str(r["market"]) for r in candidates if r.get("market")}, key=len, reverse=True)
-    market = next((m for m in markets if re.search(
-        r"(?<!\w)" + re.escape(m.casefold()) + r"(?!\w)", conversation)), None)
+    market = next((name for message in reversed(user_messages + [request.message])
+                   for name in markets
+                   if re.search(r"(?<!\\w)" + re.escape(name.casefold()) + r"(?!\\w)",
+                                message.casefold())), None)
     if not market:
         # If the farmer named a market that is absent, do not claim a match.
         # Ask them to select an available market before presenting a local quote.
@@ -449,7 +454,7 @@ def local_price_context(request: ChatRequest) -> str:
                 + ". These are historical records, not live quotes.")
     candidates = [r for r in candidates if str(r.get("market", "")).casefold() == market.casefold()]
     if not candidates:
-        return f"No matching historical records for {', '.join(crops)} in {state}. Do not invent figures."
+        return f"No matching historical records for {', '.join(crops)} in {state}."
     candidates.sort(key=lambda r: str(r["date"]), reverse=True)
     latest = candidates[0]["date"]
     recent = [r for r in candidates if r["date"] == latest][:8]
@@ -516,7 +521,7 @@ def chat(request: ChatRequest):
                            f'publisher {r["publisher"]}; URL {r["source_url"]}; '
                            f'recent={r["is_recent"]}; named market and state unavailable.'
                            for r in matched)) if matched else (
-                               "No matching published observation. Do not invent a price.")
+                               "No dated national reference observation is available for this crop.")
         except (PriceSourceError, requests.RequestException):
             context = ("Published national reference price source unavailable. "
                        "Never substitute a forecast for a current market quote.")
@@ -544,6 +549,13 @@ def chat(request: ChatRequest):
     }
     instructions = (
         "You are FarmDtech, a helpful Nigerian agricultural assistant. "
+        "The supplied data context contains internal notes, not text for the farmer. "
+        "Interpret those notes and answer naturally; never repeat internal wording "
+        "such as Do not invent a price, State identified, or Ask which market. "
+        "For a short follow-up naming a market, retain the crop being discussed. "
+        "Never attribute a state-level record to a different named market. "
+        "If the named market has no matching data, explain that plainly. "
+        "Never ask farmers to supply verified price records. "
         "Respond to the user's current question, not an unrelated forecast. "
         "Use conversation history for factual context only; never copy its language "
         "when the current language setting or message calls for another language. "
